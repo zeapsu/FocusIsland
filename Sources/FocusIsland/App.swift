@@ -50,7 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.contentViewController = host
         installPopoverDismissalMonitors()
         model.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.updateStatus() } }.store(in: &subscriptions)
-        updater.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.updateStatus() } }.store(in: &subscriptions)
+        updater.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.updateStatus()
+                self?.sizeMenu()
+            }
+        }.store(in: &subscriptions)
         model.$settings.sink { [weak self] settings in
             self?.popover.appearance = settings.theme.appearance
             self?.settingsWindow?.appearance = settings.theme.appearance

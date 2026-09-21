@@ -70,7 +70,7 @@ struct IslandView: View {
             .frame(width: island.expandedWidth, height: island.expandedHeight - island.headerHeight, alignment: .topLeading)
             .foregroundStyle(palette.text)
             .offset(y: island.headerHeight)
-            .opacity(min(1, max(0, (island.expansion - 0.5) * 2)))
+            .opacity(min(1, max(0, (Double(island.expansion) - 0.5) * 2)))
             .allowsHitTesting(island.expansion >= 0.99)
             .accessibilityHidden(island.expansion < 0.99)
             .accessibilityIdentifier("island-controls")
