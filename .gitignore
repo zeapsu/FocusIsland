@@ -1,0 +1,6 @@
+.build/
+dist/
+.DS_Store
+__pycache__/
+# Local QA captures contain live session and window metadata.
+qa/
