@@ -80,6 +80,14 @@ final class SessionController: ObservableObject {
         store.saveSettings(new)
     }
 
+    /// Keep the persisted absolute deadlines current before Sparkle or the user
+    /// terminates the process. This is intentionally synchronous so a delayed
+    /// termination reply cannot race session persistence.
+    func prepareForTermination() {
+        refresh()
+        store.saveSession(snapshot)
+    }
+
     private func publish(previous: SessionSnapshot, preservingDueNotices: Bool = false) {
         guard previous != engine.snapshot else { return }
         snapshot = engine.snapshot

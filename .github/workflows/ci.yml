@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Resolve dependencies
+        run: swift package resolve
+      - name: Run core checks
+        run: ./scripts/test-core.sh
+      - name: Run XCTest suite
+        run: swift test
+      - name: Build universal release bundle
+        env:
+          CI_RUN_NUMBER: ${{ github.run_number }}
+          FOCUS_ISLAND_UNIVERSAL: '1'
+        run: |
+          export BUILD_NUMBER=$((1000 + CI_RUN_NUMBER))
+          ./scripts/build-app.sh release
+      - name: Verify release bundle
+        env:
+          EXPECT_UNIVERSAL: '1'
+        run: ./scripts/verify-app.sh
+      - name: Archive app without losing framework symlinks or modes
+        run: ditto -c -k --sequesterRsrc --keepParent 'dist/Focus Island.app' dist/Focus-Island-bundle.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Focus-Island-bundle
+          path: dist/Focus-Island-bundle.zip
+          if-no-files-found: error
+          retention-days: 7

@@ -5,6 +5,9 @@ let package = Package(
     name: "FocusIsland",
     platforms: [.macOS(.v14)],
     products: [.library(name: "FocusCore", targets: ["FocusCore"]), .executable(name: "FocusIsland", targets: ["FocusIsland"]), .executable(name: "FocusCoreChecks", targets: ["FocusCoreChecks"])],
-    targets: [.target(name: "FocusCore"), .executableTarget(name: "FocusIsland", dependencies: ["FocusCore"]), .executableTarget(name: "FocusCoreChecks", dependencies: ["FocusCore"]), .testTarget(name: "FocusCoreTests", dependencies: ["FocusCore"])],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")
+    ],
+    targets: [.target(name: "FocusCore"), .executableTarget(name: "FocusIsland", dependencies: ["FocusCore", .product(name: "Sparkle", package: "Sparkle")]), .executableTarget(name: "FocusCoreChecks", dependencies: ["FocusCore"]), .testTarget(name: "FocusCoreTests", dependencies: ["FocusCore"])],
     swiftLanguageModes: [.v5]
 )

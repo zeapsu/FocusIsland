@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    # PR jobs do not receive the signing secret or a write token. This is
+    # intentionally a workflow_run for a successful push to protected main.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: macos-15
+    concurrency:
+      group: focus-island-release
+      cancel-in-progress: false
+    env:
+      CI_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: Focus-Island-bundle
+          path: dist
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Restore and verify the tested app bundle
+        run: |
+          ditto -x -k dist/Focus-Island-bundle.zip dist
+          export BUILD_NUMBER=$((1000 + CI_RUN_NUMBER))
+          EXPECT_UNIVERSAL=1 ./scripts/verify-app.sh
+          printf 'BUILD_NUMBER=%s\nRELEASE_TAG=v%s-build.%s\n' "$BUILD_NUMBER" "$(tr -d '[:space:]' < VERSION)" "$BUILD_NUMBER" >> "$GITHUB_ENV"
+      - name: Refuse a build number that does not advance the public feed
+        run: |
+          current_feed='https://github.com/zeapsu/FocusIsland/releases/latest/download/appcast.xml'
+          http_status="$(curl --location --silent --show-error --output /tmp/appcast.xml --write-out '%{http_code}' "$current_feed")" || { echo 'Unable to contact the public appcast.' >&2; exit 1; }
+          if [[ "$http_status" == 200 ]]; then
+            latest_build="$(python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("/tmp/appcast.xml").getroot(); values = [e.text for e in root.iter() if e.tag.endswith("version") and (e.text or "").isdigit()]; print(max(map(int, values)) if values else "")')"
+            [[ "$latest_build" =~ ^[0-9]+$ ]] || { echo 'Could not find a numeric Sparkle build version in the published appcast.' >&2; exit 1; }
+            test "$BUILD_NUMBER" -gt "$latest_build" || { echo "Build $BUILD_NUMBER is not newer than public build $latest_build." >&2; exit 1; }
+          elif [[ "$http_status" == 404 ]]; then
+            echo 'No published appcast yet; publishing the first release.'
+          else
+            echo "Unexpected appcast HTTP status: $http_status" >&2
+            exit 1
+          fi
+      - name: Package signed Sparkle update
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          SPARKLE_DOWNLOAD_URL_PREFIX: https://github.com/zeapsu/FocusIsland/releases/download/${{ env.RELEASE_TAG }}/
+        run: ./scripts/package-release.sh
+      - name: Create draft release with complete update assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            --draft \
+            --target "$TARGET_SHA" \
+            --title "Focus Island $(tr -d '[:space:]' < VERSION) (build $BUILD_NUMBER)" \
+            --generate-notes \
+            dist/release/*.zip dist/release/appcast.xml
+      - name: Publish only after all assets are attached
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$RELEASE_TAG" --draft=false
+      - name: Verify the public feed and immutable release asset
+        run: |
+          feed_url='https://github.com/zeapsu/FocusIsland/releases/latest/download/appcast.xml'
+          asset_url="https://github.com/zeapsu/FocusIsland/releases/download/$RELEASE_TAG/Focus-Island-$(tr -d '[:space:]' < VERSION)-$BUILD_NUMBER.zip"
+          for _ in {1..10}; do
+            curl --fail --location --silent --show-error "$feed_url" -o /tmp/public-appcast.xml && break
+            sleep 3
+          done
+          grep -Fq "$asset_url" /tmp/public-appcast.xml
+          grep -q 'sparkle:edSignature=' /tmp/public-appcast.xml
+          grep -q '<!-- sparkle-signatures:' /tmp/public-appcast.xml
+          cmp -s /tmp/public-appcast.xml dist/release/appcast.xml
+          curl --fail --location --silent --show-error "$asset_url" -o /tmp/public-update.zip
+          test "$(shasum -a 256 /tmp/public-update.zip | awk '{print $1}')" = "$(shasum -a 256 dist/release/*.zip | awk '{print $1}')"

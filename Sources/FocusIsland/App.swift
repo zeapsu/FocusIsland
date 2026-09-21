@@ -16,6 +16,7 @@ struct FocusIslandMain {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private lazy var model = SessionController()
+    private lazy var updater = UpdateController(disabled: model.isQA)
     private var statusItem: NSStatusItem?
     private var island: IslandWindowController?
     private var settingsWindow: NSWindow?
@@ -43,12 +44,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.behavior = .transient
         popover.delegate = self
         popover.animates = false
-        let host = NSHostingController(rootView: MenuContentView(model: model, openSettings: { [weak self] in self?.showSettings() }, quit: { NSApp.terminate(nil) }))
+        let host = NSHostingController(rootView: MenuContentView(model: model, updater: updater, openSettings: { [weak self] in self?.showSettings() }, quit: { NSApp.terminate(nil) }))
         host.sizingOptions = []
         menuHost = host
         popover.contentViewController = host
         installPopoverDismissalMonitors()
         model.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.updateStatus() } }.store(in: &subscriptions)
+        updater.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.updateStatus() } }.store(in: &subscriptions)
         model.$settings.sink { [weak self] settings in
             self?.popover.appearance = settings.theme.appearance
             self?.settingsWindow?.appearance = settings.theme.appearance
@@ -68,12 +70,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func updateStatus() {
         guard let button = statusItem?.button else { return }
-        button.image = NSImage(systemSymbolName: model.icon, accessibilityDescription: model.title)
+        let icon = updater.hasAvailableUpdate ? "arrow.down.circle" : model.icon
+        button.image = NSImage(systemSymbolName: icon, accessibilityDescription: model.title)
         button.imagePosition = .imageOnly
         button.title = ""
         button.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        button.toolTip = "Focus Island · " + model.title
-        button.setAccessibilityLabel("Focus Island menu, \(model.title) \(model.clockText)")
+        let updateDescription = updater.availableVersion.map { " Update v\($0) is available." } ?? ""
+        button.toolTip = "Focus Island · " + model.title + updateDescription
+        button.setAccessibilityLabel("Focus Island menu, \(model.title) \(model.clockText)\(updateDescription)")
     }
 
     @objc private func toggleMenu() {
@@ -188,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func showSettings() {
         popover.performClose(nil)
         if settingsWindow == nil {
-            let host = NSHostingController(rootView: SettingsView(model: model))
+            let host = NSHostingController(rootView: SettingsView(model: model, updater: updater))
             let window = NSWindow(contentViewController: host)
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.title = "Focus Island Settings"
@@ -202,6 +206,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        model.prepareForTermination()
         Task {
             await model.notifications.finishPending()
             sender.reply(toApplicationShouldTerminate: true)

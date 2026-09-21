@@ -123,6 +123,7 @@ struct IslandView: View {
 
 struct MenuContentView: View {
     @ObservedObject var model: SessionController
+    @ObservedObject var updater: UpdateController
     let openSettings: () -> Void
     let quit: () -> Void
     @Environment(\.colorScheme) private var scheme
@@ -142,6 +143,18 @@ struct MenuContentView: View {
                 Button("End Session", action: model.cancel).buttonStyle(.plain).font(.callout)
             }
             Divider()
+            if updater.isEnabled || !model.isQA {
+                if updater.isEnabled {
+                    Button(updater.checkButtonTitle, action: updater.checkForUpdates)
+                        .disabled(!updater.canCheckForUpdates)
+                        .accessibilityIdentifier("checkForUpdates")
+                }
+                if let status = updater.statusText {
+                    Text(status).font(.caption).foregroundStyle(palette.secondaryText)
+                        .accessibilityIdentifier("updateStatus")
+                }
+                Divider()
+            }
             HStack {
                 Button("Settings…", action: openSettings).keyboardShortcut(",")
                     .accessibilityIdentifier("openSettings")
@@ -157,6 +170,7 @@ struct MenuContentView: View {
 
 struct SettingsView: View {
     @ObservedObject var model: SessionController
+    @ObservedObject var updater: UpdateController
     @ObservedObject var notifications: NotificationManager
     @State private var checkpoint: String
     @State private var hardStop: String
@@ -164,8 +178,9 @@ struct SettingsView: View {
     @State private var saved = false
     @Environment(\.colorScheme) private var scheme
 
-    init(model: SessionController) {
+    init(model: SessionController, updater: UpdateController) {
         self.model = model
+        self.updater = updater
         notifications = model.notifications
         _checkpoint = State(initialValue: String(model.settings.checkpointMinutes))
         _hardStop = State(initialValue: String(model.settings.hardStopMinutes))
@@ -192,6 +207,7 @@ struct SettingsView: View {
             HStack {
                 Text(error ?? (saved ? "Saved. Active deadlines stay unchanged." : "Focus times apply to the next focus. Break time applies when you start a break."))
                     .font(.caption).foregroundStyle(error == nil ? palette.secondaryText : palette.warning)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("settings-validation")
                 Spacer()
                 Button("Save Durations") {
@@ -213,6 +229,19 @@ struct SettingsView: View {
                 Button(notifications.permissionButtonTitle, action: notifications.handlePermissionAction)
                     .disabled(notifications.isRequestingPermission || notifications.authorizationStatus == nil)
                     .accessibilityIdentifier("notificationPermission")
+            }
+            if updater.isEnabled {
+                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Updates").font(.headline)
+                    Toggle("Automatically check for updates", isOn: Binding(
+                        get: { updater.automaticallyChecksForUpdates },
+                        set: updater.setAutomaticallyChecksForUpdates
+                    ))
+                    if let status = updater.statusText {
+                        Text(status).font(.callout).foregroundStyle(palette.secondaryText)
+                    }
+                }
             }
             if model.isQA { Text("QA mode · 20× timer speed · separate preferences").font(.caption).foregroundStyle(palette.secondaryText) }
         }
