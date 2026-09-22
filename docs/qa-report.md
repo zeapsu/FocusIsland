@@ -1,5 +1,9 @@
 # Verification report
 
+## GitHub releases and updates
+
+The real GitHub release pipeline and native Sparkle update from build 1000 to 1002 passed, preserving the active session and preferences. CI passed 109 portable assertions and 18 XCTest tests. See the [release and updater verification](update-qa.md) for the executed steps, workflow links, and distribution limits.
+
 ## Current: notification permission action
 
 The installed app reported notification permission denied but still offered Enable Notifications. An AX activation of that control left the same denied state and label. The implementation repeated `requestAuthorization` after a recorded decision, which [Apple documents as not prompting again](https://developer.apple.com/documentation/usernotifications/asking-permission-to-use-notifications). The button now requests only an undecided permission; otherwise it opens Focus Island's page in System Settings. Returning to the app refreshes permission and updates the current reminder plan without changing timer deadlines.

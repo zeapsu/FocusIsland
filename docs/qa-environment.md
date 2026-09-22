@@ -73,7 +73,16 @@ PY
 open .build/FullscreenFixture.app
 ```
 
-Launch the timer debug build with the QA flags documented in the README, save 5/10/3 durations, then run `python3 scripts/qa-placement.py`. This script's pointer coordinates and compact-height assertion target the tested 1710×1107 display with a 33-point notch band. Adapt those values when running it on another display. It checks native full-screen state through Accessibility, allows the temporary absence of the window during Space animation, and asserts the island's actual visibility. `python3 scripts/qa-lifecycle.py` then exercises the regular lifecycle. Neither script changes privacy permissions.
+Quit the production app first, then launch the debug bundle with isolated timer preferences and diagnostic output:
+
+```sh
+./scripts/build-app.sh debug
+open "dist/Focus Island.app" --args --qa-speed --qa-artifacts
+```
+
+The speed flag uses the `local.focusisland.qa` preference domain and runs timers at 20× speed; updater checks are disabled. Set checkpoint/hard stop/break to 5/10/3 in Settings for 15/30/9-second test deadlines. Both flags are compiled out of release builds. After QA, quit this copy and reopen the installed production app to reconstruct its original absolute deadlines.
+
+Run `python3 scripts/qa-placement.py` after saving those QA durations. This script's pointer coordinates and compact-height assertion target the tested 1710×1107 display with a 33-point notch band. Adapt those values when running it on another display. It checks native full-screen state through Accessibility, allows the temporary absence of the window during Space animation, and asserts the island's actual visibility. `python3 scripts/qa-lifecycle.py` then exercises the regular lifecycle. Neither script changes privacy permissions.
 
 `python3 scripts/qa-hover.py` works with either debug or release builds on the same display. Start idle with the fixture in its normal window. It checks quick pointer flybys, movement through the expanded controls, re-entry during collapse, actual Start/Cancel mouse clicks, transparent canvas boundaries, outward motion of the header elements, and real clicks on the island menu shortcut. The native canvas remains 428×159 points throughout; the visible surface morphs inside it. Native screenshots and test output are saved under `qa/hover/`.
 

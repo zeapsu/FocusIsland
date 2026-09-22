@@ -2,6 +2,10 @@
 
 Review date: September 21, 2026.
 
+## GitHub releases and Sparkle updates
+
+A separate reviewer inspected the updater, session-preserving termination, application packaging, GitHub workflows, and credential handling. Initial findings led to preserving bundle permissions/symlinks in ZIP artifacts, checking universal helper architectures and the embedded signing key, scoping the private key to the signing step, serializing releases, checking increasing build numbers, and verifying both feed and archive signatures. The final static review found no remaining material issue. Published downloads and a real Sparkle installation were then exercised; see [runtime verification](update-qa.md).
+
 ## Notification permission action
 
 A separate reviewer inspected the already-denied permission path, asynchronous status refresh, scheduling, errors, and accessibility. No blocker, high, or medium findings. The action now requests authorization only for `notDetermined`, routes existing decisions to the app's System Settings page, and disables repeated clicks while checking. Returning to the app refreshes permission. A status change resynchronizes the existing notice plan through the serialized scheduler without changing timer timestamps. Request errors remain visible. A stable identifier was added to the menu Settings button so native QA distinguishes it from Open Notification Settings.

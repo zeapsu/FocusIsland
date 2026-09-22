@@ -50,4 +50,4 @@ Explain the user-visible change, the timer/window behavior it affects, and the c
 
 ## Security and privacy
 
-Do not put credentials, signing keys, update private keys, personal timer data, or captured desktop material in the repository. Report a security issue privately to the maintainers rather than publishing sensitive details in a public issue.
+Do not put credentials, signing keys, update private keys, personal timer data, or captured desktop material in the repository. Use GitHub’s [private vulnerability reporting](https://github.com/zeapsu/FocusIsland/security/advisories/new) for security issues; do not publish sensitive details in a public issue.

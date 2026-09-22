@@ -8,9 +8,9 @@
 
 A small, native macOS focus timer that lives in the menu bar and grows out of the MacBook notch when you need it. It asks at a checkpoint without stopping your work, prompts you to move at the hard stop, and times the break that follows.
 
-![Focus Island expanding from the notch](docs/assets/hero.png)
+<p align="center"><img src="docs/assets/hero.png" alt="Focus Island expanded around the notch" width="640"></p>
 
-![Hover interaction: the compact notch shell widens into controls](docs/assets/hover.gif)
+<p align="center"><img src="docs/assets/hover.gif" alt="A real hover recording: the compact notch shell expands into controls" width="640"></p>
 
 ## What it does
 
@@ -21,7 +21,7 @@ A small, native macOS focus timer that lives in the menu bar and grows out of th
 - Offers System, Solarized Light, and Solarized Dark appearances.
 - Uses native notifications when allowed; declining permission never prevents the timer from working.
 
-![Settings with duration controls and theme picker](docs/assets/settings.png)
+<p align="center"><img src="docs/assets/settings.png" alt="Settings with durations, themes, notifications, and automatic updates" width="500"></p>
 
 ## Install
 

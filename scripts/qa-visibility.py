@@ -6,6 +6,7 @@ or DEBUG builds and never changes the timer or preferences.
 """
 import importlib.util
 import json
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -45,10 +46,21 @@ def record(name, expected):
     (OUT / f"{name}.json").write_text(json.dumps({"fixtureFullscreen": fullscreen(), "islandOnScreen": visible(), "windows": rows}, indent=2))
     print(f"PASS {name}: islandOnScreen={expected}", flush=True)
 
+def toggle_fullscreen():
+    subprocess.run(["open", str(ROOT / ".build/FullscreenFixture.app")], check=True)
+    settle(lambda: subprocess.check_output(["osascript", "-e", 'tell application "System Events" to get name of first application process whose frontmost is true'], text=True).strip() == "FullscreenFixture")
+    # AXPress can report success without entering a new Space. Drive the real
+    # button with a mouse click, then let the caller verify AXFullScreen.
+    control = q.tool("inspect", FIXTURE, "Toggle Full Screen")
+    match = re.search(r"frame=\{\{([\d.-]+), ([\d.-]+)\}, \{([\d.-]+), ([\d.-]+)\}\}", control)
+    assert match, control
+    x, y, width, height = map(float, match.groups())
+    q.tool("click", str(x + width / 2), str(y + height / 2))
+
 subprocess.run(["open", str(ROOT / ".build/FullscreenFixture.app")], check=True)
 time.sleep(.5)
 if fullscreen() is True:
-    q.tool("press", FIXTURE, "Toggle Full Screen")
+    toggle_fullscreen()
 settle(lambda: fullscreen() is False)
 q.tool("press", FIXTURE, "Normal Window")
 q.tool("move", "1200", "400")
@@ -63,7 +75,7 @@ record("desktop-maximized-hover", True)
 q.tool("move", "1200", "400")
 
 for index in range(2):
-    q.tool("press", FIXTURE, "Toggle Full Screen")
+    toggle_fullscreen()
     settle(lambda: fullscreen() is True)
     q.tool("move", "1200", "400")
     time.sleep(.5)
@@ -84,7 +96,7 @@ for index in range(2):
     q.tool("click", "500", "450")
     time.sleep(.4)
     assert "role=AXPopover" not in q.tool("tree", q.APP, "7"), "full-screen click-away left popup open"
-    q.tool("press", FIXTURE, "Toggle Full Screen")
+    toggle_fullscreen()
     settle(lambda: fullscreen() is False)
     record(f"desktop-restored-{index}", True)
 
