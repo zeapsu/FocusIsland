@@ -91,4 +91,4 @@ Near-term work focuses on multi-display behavior, accessibility, and release dis
 
 ## License
 
-Focus Island is available under the [MIT License](LICENSE).
+Focus Island is available under the [MIT License](LICENSE). The app includes [Sparkle and its third-party license notices](docs/licenses/Sparkle-2.10.0.txt).

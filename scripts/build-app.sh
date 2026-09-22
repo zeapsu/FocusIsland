@@ -55,6 +55,9 @@ trap cleanup EXIT
 stage_app="$stage_root/Focus Island.app"
 mkdir -p "$stage_app/Contents/MacOS" "$stage_app/Contents/Resources" "$stage_app/Contents/Frameworks"
 cp "$bin_path/FocusIsland" "$stage_app/Contents/MacOS/FocusIsland"
+mkdir -p "$stage_app/Contents/Resources/Licenses"
+cp "$root/LICENSE" "$stage_app/Contents/Resources/Licenses/Focus-Island.txt"
+cp "$root/docs/licenses/Sparkle-2.10.0.txt" "$stage_app/Contents/Resources/Licenses/Sparkle.txt"
 
 # SwiftPM resolves Sparkle as a binary framework. Embed it so the app never
 # relies on a developer's local .build directory at runtime.

@@ -9,6 +9,8 @@ plist="$app_path/Contents/Info.plist"
 [[ -x "$app_path/Contents/MacOS/FocusIsland" ]] || { echo "Missing FocusIsland executable." >&2; exit 1; }
 [[ -d "$app_path/Contents/Frameworks/Sparkle.framework" ]] || { echo "Sparkle.framework is not embedded." >&2; exit 1; }
 plutil -lint "$plist" >/dev/null
+cmp -s "$root/LICENSE" "$app_path/Contents/Resources/Licenses/Focus-Island.txt" || { echo "Missing or changed app license." >&2; exit 1; }
+cmp -s "$root/docs/licenses/Sparkle-2.10.0.txt" "$app_path/Contents/Resources/Licenses/Sparkle.txt" || { echo "Missing or changed Sparkle license notices." >&2; exit 1; }
 value() { /usr/libexec/PlistBuddy -c "Print :$1" "$plist"; }
 [[ "$(value CFBundleIdentifier)" == "local.focusisland.app" ]] || { echo "Unexpected bundle identifier." >&2; exit 1; }
 [[ "$(value CFBundleShortVersionString)" == "$(tr -d '[:space:]' < "$root/VERSION")" ]] || { echo "Bundle version does not match VERSION." >&2; exit 1; }
