@@ -78,10 +78,18 @@ jobs:
         run: |
           feed_url='https://github.com/zeapsu/FocusIsland/releases/latest/download/appcast.xml'
           asset_url="https://github.com/zeapsu/FocusIsland/releases/download/$RELEASE_TAG/Focus-Island-$(tr -d '[:space:]' < VERSION)-$BUILD_NUMBER.zip"
-          for _ in {1..10}; do
-            curl --fail --location --silent --show-error "$feed_url" -o /tmp/public-appcast.xml && break
+          # GitHub can briefly serve the previous latest-release redirect.
+          # HTTP 200 alone does not mean the new signed feed has propagated.
+          published=false
+          for attempt in {1..20}; do
+            if curl --fail --location --silent --show-error "$feed_url" -o /tmp/public-appcast.xml && cmp -s /tmp/public-appcast.xml dist/release/appcast.xml; then
+              published=true
+              break
+            fi
+            echo "Waiting for the expected signed feed (attempt $attempt)."
             sleep 3
           done
+          [[ "$published" == true ]] || { echo 'The public feed did not converge to this release.' >&2; exit 1; }
           grep -Fq "$asset_url" /tmp/public-appcast.xml
           grep -q 'sparkle:edSignature=' /tmp/public-appcast.xml
           grep -q '<!-- sparkle-signatures:' /tmp/public-appcast.xml

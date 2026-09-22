@@ -25,6 +25,8 @@ A real installed build 1000 checked the public GitHub feed and updated to build 
 
 The test used native Accessibility inspection, actual mouse clicks, application-window screenshots, and direct reads of the installed bundle and persisted state. Local evidence is under ignored `qa/updates/`; private session records are not published.
 
+The next automatic publication exposed a propagation delay: GitHub initially served the previous signed feed after the new release was published. The post-publication check was corrected to retry until the downloaded feed matches the expected signed bytes, rather than accepting the first HTTP 200 response. It still fails if the expected feed does not become available.
+
 ## Scope and limits
 
 The separate static review found no remaining material issue in the updater, signing flow, release permissions, or session-preserving termination. Runtime checks complement that review.
