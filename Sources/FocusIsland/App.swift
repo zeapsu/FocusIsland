@@ -56,10 +56,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self?.sizeMenu()
             }
         }.store(in: &subscriptions)
-        model.$settings.sink { [weak self] settings in
-            self?.popover.appearance = settings.theme.appearance
-            self?.settingsWindow?.appearance = settings.theme.appearance
-        }.store(in: &subscriptions)
         model.$snapshot.map(\.state).removeDuplicates().sink { [weak self] _ in
             DispatchQueue.main.async { self?.sizeMenu() }
         }.store(in: &subscriptions)
@@ -202,7 +198,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.title = "Focus Island Settings"
             window.isReleasedWhenClosed = false
-            window.appearance = model.settings.theme.appearance
             window.center()
             settingsWindow = window
         }

@@ -28,7 +28,7 @@ It uses macOS Accessibility APIs to inspect and activate controls, and Core Grap
 .build/ui-tool click 720 24
 ```
 
-The query in `inspect`, `press`, and `set-value` matches an accessibility identifier, title, or description. Give FocusIsland's controls stable identifiers and labels, for example `startFocus`, `continueFocus`, `startBreak`, `endSession`, `checkpointDuration`, `hardStopDuration`, `breakDuration`, and `themePicker`.
+The query in `inspect`, `press`, and `set-value` matches an accessibility identifier, title, or description. Give FocusIsland's controls stable identifiers and labels, for example `startFocus`, `continueFocus`, `startBreak`, `endSession`, `checkpointDuration`, `hardStopDuration`, and `breakDuration`.
 
 `enable-enhanced` asks the target app for its enhanced Accessibility hierarchy. It does not change macOS privacy settings. It only works if the app exposes `AXEnhancedUserInterface` as settable.
 

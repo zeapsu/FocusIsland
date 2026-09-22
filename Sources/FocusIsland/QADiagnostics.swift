@@ -35,7 +35,7 @@ import UserNotifications
             view.cacheDisplay(in: view.bounds, to: bitmap)
             if let png = bitmap.representation(using: .png, properties: [:]) { try? png.write(to: directory.appendingPathComponent("window-\(index).png"), options: .atomic) }
         }
-        let result: [String: Any] = ["state": model.snapshot.state.rawValue, "clock": model.clockText, "theme": model.settings.theme.rawValue, "windows": windows, "time": Date().timeIntervalSince1970, "activationPolicy": NSApp.activationPolicy().rawValue, "systemPresentation": NSApp.currentSystemPresentationOptions.rawValue, "notifications": nativeNotifications,
+        let result: [String: Any] = ["state": model.snapshot.state.rawValue, "clock": model.clockText, "windows": windows, "time": Date().timeIntervalSince1970, "activationPolicy": NSApp.activationPolicy().rawValue, "systemPresentation": NSApp.currentSystemPresentationOptions.rawValue, "notifications": nativeNotifications,
             "sessionStart": model.snapshot.sessionStart?.timeIntervalSince1970 ?? 0,
             "checkpointAt": model.snapshot.checkpointAt?.timeIntervalSince1970 ?? 0,
             "hardStopAt": model.snapshot.hardStopAt?.timeIntervalSince1970 ?? 0,

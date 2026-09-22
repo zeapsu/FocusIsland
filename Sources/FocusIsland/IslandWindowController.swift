@@ -96,7 +96,6 @@ final class IslandWindowController {
         }
         if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged], handler: { [weak self] _ in self?.updatePointer() }) { pointerMonitors.append(monitor) }
         if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged], handler: { [weak self] event in self?.updatePointer(); return event }) { pointerMonitors.append(monitor) }
-        model.$settings.sink { [weak self] settings in self?.panel.appearance = settings.theme.appearance }.store(in: &subscriptions)
         model.$snapshot.map(\.state).removeDuplicates().sink { [weak self] state in
             guard let self else { return }
             self.displayedState = state

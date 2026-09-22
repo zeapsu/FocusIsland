@@ -1,5 +1,14 @@
 # Verification report
 
+## Current appearance
+
+Version 1.1.1 removes the theme selector and both Solarized palettes. The attached notch stays black, while the menu and Settings follow macOS appearance. Loading older settings ignores their retired theme field without resetting custom durations. Earlier theme-selection checks below describe historical builds, not current options.
+
+- Debug and release builds and bundle signature checks passed. Portable core checks passed **111 assertions in 7 groups**, including migration of all three former theme values with custom durations.
+- Native Settings, menu, compact notch, and expanded notch were captured and visually inspected in actual macOS light and dark appearance. The theme selector is absent, Settings and the menu change appearance, and the notch stays black. The original system appearance was restored.
+- Installing and relaunching the local release preserved the active session ID, state, and all absolute timestamps, along with the saved timer durations. The retired theme field was removed from persisted settings.
+- A separate read-only review found no material issue in the migration, appearance handling, or documentation. The README Settings screenshot was replaced with a capture of this build. Evidence is under `qa/system-appearance/`.
+
 ## GitHub releases and updates
 
 The real GitHub release pipeline and native Sparkle update from build 1000 to 1002 passed, preserving the active session and preferences. CI passed 109 portable assertions and 18 XCTest tests. See the [release and updater verification](update-qa.md) for the executed steps, workflow links, and distribution limits.
@@ -53,7 +62,7 @@ Evidence is under `qa/visibility/`. `desktop-maximized-before.json` is the repro
 
 The user's screenshot clarified the intended interaction: the notch itself expands over the menu bar, with its timer and icon moving outward around the fixed camera gap. That is now one continuous surface. Its top corners flare outward with concave curves: 6 points collapsed and 14 points expanded. The native canvas remains fixed at 428×159 points on the tested display, reserving room for the flares around the 400-point content width. Visible heights are 33 points collapsed, 133 expanded idle, and 151 expanded active.
 
-In System mode the notched island stays black to blend with the hardware; the menu and Settings still follow macOS appearance. Explicit Solarized themes color every app surface. The right-hand island icon opens the same anchored menu as the native status item. The island folds away while that menu is open and preserves pending hard-stop prompts.
+In that earlier build, System mode kept the notched island black while the menu and Settings followed macOS appearance. The former Solarized choices colored every app surface; version 1.1.1 removes those choices. The right-hand island icon opens the same anchored menu as the native status item. The island folds away while that menu is open and preserves pending hard-stop prompts.
 
 - Debug and release portable core checks pass **115 assertions in 7 groups**. Geometry cases cover rounded corners, invisible canvas, opening and closing phases, menu-band expansion, and both outward flares and their transparent surroundings.
 - The native hover regression failed against the original release on quick pointer transit. It passes with the final implementation: brief flybys stay closed; header elements move outward; movement into controls stays open; re-entry during collapse reverses the morph; actual Start/Cancel clicks work; empty canvas passes input through. The island menu shortcut opens the correctly anchored popup and folds the island away.

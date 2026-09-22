@@ -42,7 +42,7 @@ struct IslandView: View {
     }
 
     var body: some View {
-        let palette = Palette.island(model.settings.theme, scheme: scheme, attached: island.attachedToNotch)
+        let palette = Palette.island(attached: island.attachedToNotch)
         let surface = Path(IslandGeometry.surfacePath(size: CGSize(width: island.canvasWidth, height: island.canvasHeight),
             headerWidth: headerWidth, headerHeight: island.headerHeight, headerOffset: headerOffset,
             expandedHeight: island.expandedHeight, attached: island.attachedToNotch, expansion: island.expansion))
@@ -78,8 +78,7 @@ struct IslandView: View {
         .frame(width: island.canvasWidth, height: island.canvasHeight, alignment: .top)
         .mask(surface)
         .tint(palette.accent)
-        .preferredColorScheme(model.settings.theme.colorScheme)
-        .environment(\.colorScheme, island.attachedToNotch && model.settings.theme == .system ? .dark : model.settings.theme.colorScheme ?? scheme)
+        .environment(\.colorScheme, island.attachedToNotch ? .dark : scheme)
         .ignoresSafeArea()
     }
 
@@ -126,9 +125,8 @@ struct MenuContentView: View {
     @ObservedObject var updater: UpdateController
     let openSettings: () -> Void
     let quit: () -> Void
-    @Environment(\.colorScheme) private var scheme
     var body: some View {
-        let palette = Palette.resolve(model.settings.theme, scheme: scheme)
+        let palette = Palette.system
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("Focus Island", systemImage: model.icon).font(.headline)
@@ -164,7 +162,6 @@ struct MenuContentView: View {
         }
         .padding(20).frame(width: 340)
         .foregroundStyle(palette.text).tint(palette.accent).background(palette.background)
-        .preferredColorScheme(model.settings.theme.colorScheme)
     }
 }
 
@@ -176,7 +173,6 @@ struct SettingsView: View {
     @State private var hardStop: String
     @State private var breakTime: String
     @State private var saved = false
-    @Environment(\.colorScheme) private var scheme
 
     init(model: SessionController, updater: UpdateController) {
         self.model = model
@@ -188,12 +184,12 @@ struct SettingsView: View {
     }
     private var draft: TimerSettings? {
         guard let checkpoint = Int(checkpoint), let hardStop = Int(hardStop), let breakTime = Int(breakTime) else { return nil }
-        return TimerSettings(checkpointMinutes: checkpoint, hardStopMinutes: hardStop, breakMinutes: breakTime, theme: model.settings.theme)
+        return TimerSettings(checkpointMinutes: checkpoint, hardStopMinutes: hardStop, breakMinutes: breakTime)
     }
     private var error: String? { draft?.validationError ?? (draft == nil ? "Enter whole minutes in all three fields." : nil) }
 
     var body: some View {
-        let palette = Palette.resolve(model.settings.theme, scheme: scheme)
+        let palette = Palette.system
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 5) {
                 Text("Make room for focus.").font(.title2.weight(.semibold))
@@ -214,12 +210,6 @@ struct SettingsView: View {
                     if let draft, draft.validationError == nil { model.saveSettings(draft); saved = true }
                 }.buttonStyle(.borderedProminent).disabled(error != nil)
             }
-            Divider()
-            Picker("Theme", selection: Binding(get: { model.settings.theme }, set: { theme in
-                var next = model.settings; next.theme = theme; model.saveSettings(next)
-            })) {
-                ForEach(ThemePreference.allCases, id: \.self) { theme in Text(theme.displayName).tag(theme) }
-            }.pickerStyle(.segmented).accessibilityLabel("Theme").accessibilityIdentifier("themePicker")
             Divider()
             VStack(alignment: .leading, spacing: 10) {
                 Text("Reminders").font(.headline)
@@ -247,7 +237,6 @@ struct SettingsView: View {
         }
         .padding(26).frame(width: 500)
         .foregroundStyle(palette.text).tint(palette.accent).background(palette.background)
-        .preferredColorScheme(model.settings.theme.colorScheme)
         .onChange(of: checkpoint) { _, _ in saved = false }
         .onChange(of: hardStop) { _, _ in saved = false }
         .onChange(of: breakTime) { _, _ in saved = false }
@@ -256,7 +245,7 @@ struct SettingsView: View {
         GridRow {
             Text(label)
             TextField(label, text: value).textFieldStyle(.roundedBorder).frame(width: 64).accessibilityLabel(label + " minutes")
-            Text(hint).font(.caption).foregroundStyle(Palette.resolve(model.settings.theme, scheme: scheme).secondaryText)
+            Text(hint).font(.caption).foregroundStyle(Palette.system.secondaryText)
         }
     }
 }

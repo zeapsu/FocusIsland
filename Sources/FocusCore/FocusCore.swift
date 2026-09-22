@@ -10,36 +10,19 @@ public enum SessionState: String, Codable, Equatable, Sendable {
     case onBreak
 }
 
-public enum ThemePreference: String, CaseIterable, Codable, Equatable, Sendable {
-    case system
-    case solarizedLight
-    case solarizedDark
-
-    public var displayName: String {
-        switch self {
-        case .system: "System"
-        case .solarizedLight: "Solarized Light"
-        case .solarizedDark: "Solarized Dark"
-        }
-    }
-}
-
 public struct TimerSettings: Codable, Equatable, Sendable {
     public var checkpointMinutes: Int
     public var hardStopMinutes: Int
     public var breakMinutes: Int
-    public var theme: ThemePreference
 
     public init(
         checkpointMinutes: Int = 50,
         hardStopMinutes: Int = 90,
-        breakMinutes: Int = 10,
-        theme: ThemePreference = .system
+        breakMinutes: Int = 10
     ) {
         self.checkpointMinutes = checkpointMinutes
         self.hardStopMinutes = hardStopMinutes
         self.breakMinutes = breakMinutes
-        self.theme = theme
     }
 
     /// A user-facing validation message, or nil when these values can be used.

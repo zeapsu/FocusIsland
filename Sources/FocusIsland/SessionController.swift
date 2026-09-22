@@ -28,6 +28,9 @@ final class SessionController: ObservableObject {
         engine = SessionEngine(snapshot: store.loadSession(), now: Date())
         snapshot = engine.snapshot
         notifications = NotificationManager()
+        // Codable ignores the retired theme field in older preferences.
+        // Save the current schema while preserving the user's durations.
+        store.saveSettings(settings)
         store.saveSession(snapshot)
         syncNotifications()
         ticker = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect().sink { [weak self] _ in self?.refresh() }

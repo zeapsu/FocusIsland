@@ -122,12 +122,17 @@ func testValidationAndInvalidTransitions() throws {
 func testPersistenceAndSettings() throws {
     let defaults = temporaryDefaults()
     let store = LocalStore(defaults: defaults)
-    for theme in ThemePreference.allCases {
-        let configured = TimerSettings(checkpointMinutes: 20, hardStopMinutes: 40, breakMinutes: 8, theme: theme)
-        store.saveSettings(configured)
-        try check(store.loadSettings() == configured, "settings persist for \(theme.rawValue)")
+    let configured = TimerSettings(checkpointMinutes: 20, hardStopMinutes: 40, breakMinutes: 8)
+    store.saveSettings(configured)
+    try check(store.loadSettings() == configured, "custom durations persist")
+    for legacyTheme in ["system", "solarizedLight", "solarizedDark"] {
+        let legacy = try JSONSerialization.data(withJSONObject: ["checkpointMinutes": 20, "hardStopMinutes": 40, "breakMinutes": 8, "theme": legacyTheme])
+        defaults.set(legacy, forKey: "focusIsland.settings.v1")
+        try check(store.loadSettings() == configured, "retired \(legacyTheme) preference preserves custom durations")
     }
-    let configured = TimerSettings(checkpointMinutes: 20, hardStopMinutes: 40, breakMinutes: 8, theme: .solarizedDark)
+    store.saveSettings(store.loadSettings())
+    let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(store.loadSettings())) as? [String: Any]
+    try check(encoded?["theme"] == nil, "new settings omit retired theme field")
     defaults.set(Data("bad".utf8), forKey: "focusIsland.session.v1")
     try check(store.loadSession(now: origin).state == .idle, "corrupt session falls back to idle")
     store.saveSettings(makeSettings(10, 10))

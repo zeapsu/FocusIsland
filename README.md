@@ -18,10 +18,10 @@ A small, native macOS focus timer that lives in the menu bar and grows out of th
 - Keeps the timer accurate across sleep, display sleep, and ordinary relaunches by persisting absolute deadlines instead of counting ticks.
 - Uses one shared session model for the menu bar, notch island, Settings, and notifications.
 - Expands from the notch into a small control surface on hover. The camera cutout stays clear, and the shell folds back after the pointer leaves.
-- Offers System, Solarized Light, and Solarized Dark appearances.
+- Keeps the notch black; the menu and Settings follow macOS light or dark appearance.
 - Uses native notifications when allowed; declining permission never prevents the timer from working.
 
-<p align="center"><img src="docs/assets/settings.png" alt="Settings with durations, themes, notifications, and automatic updates" width="500"></p>
+<p align="center"><img src="docs/assets/settings.png" alt="Settings with durations, notifications, and automatic updates" width="500"></p>
 
 ## Install
 
@@ -59,8 +59,6 @@ Settings use whole minutes: checkpoint 1–239, hard stop 2–240 and greater th
 On a notched Mac, the compact island occupies the menu-bar band around the physical camera area. Hover widens that shell across the menu bar and moves the timer and state icon outward as controls appear below. On a rectangular display, it becomes a compact pill below the menu bar.
 
 The island follows the current desktop Space and remains available over ordinary and maximized windows and in native full-screen apps. Its compact form stays in the notch band; hover expands it into controls without taking keyboard focus. One island follows the cursor display when the menu opens; multi-display behavior beyond that rule remains under active stabilization.
-
-The design takes interaction inspiration from [MacNotch](https://macnotch.io/), [Notchy](https://notchy.dev/blog/make-macbook-notch-useful/), and the user-supplied NotchNook reference. It does not copy their assets or layout.
 
 ## Updates and privacy
 

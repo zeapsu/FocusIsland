@@ -140,14 +140,27 @@ final class FocusCoreTests: XCTestCase {
         XCTAssertEqual(SessionEngine(snapshot: malformed, now: origin).snapshot.state, .idle)
     }
 
-    func testSettingsAndThemePersist() {
-        let defaults = temporaryDefaults()
-        let store = LocalStore(defaults: defaults)
-        let expected = TimerSettings(checkpointMinutes: 20, hardStopMinutes: 40, breakMinutes: 8, theme: .solarizedDark)
+    func testCustomTimerSettingsPersist() {
+        let store = LocalStore(defaults: temporaryDefaults())
+        let expected = TimerSettings(checkpointMinutes: 20, hardStopMinutes: 40, breakMinutes: 8)
         store.saveSettings(expected)
         XCTAssertEqual(store.loadSettings(), expected)
-        XCTAssertEqual(ThemePreference.system.displayName, "System")
-        XCTAssertEqual(ThemePreference.solarizedLight.displayName, "Solarized Light")
+    }
+
+    func testRetiredThemePreferencesPreserveDurationsAndAreNotWrittenBack() throws {
+        let defaults = temporaryDefaults()
+        let store = LocalStore(defaults: defaults)
+        let expected = TimerSettings(checkpointMinutes: 20, hardStopMinutes: 40, breakMinutes: 8)
+        for legacyTheme in ["system", "solarizedLight", "solarizedDark"] {
+            let legacy = try JSONSerialization.data(withJSONObject: ["checkpointMinutes": 20, "hardStopMinutes": 40, "breakMinutes": 8, "theme": legacyTheme])
+            defaults.set(legacy, forKey: "focusIsland.settings.v1")
+            XCTAssertEqual(store.loadSettings(), expected, legacyTheme)
+            store.saveSettings(store.loadSettings())
+            let saved = try XCTUnwrap(defaults.data(forKey: "focusIsland.settings.v1"))
+            let fields = try XCTUnwrap(JSONSerialization.jsonObject(with: saved) as? [String: Any])
+            XCTAssertNil(fields["theme"])
+            XCTAssertEqual(store.loadSettings(), expected)
+        }
     }
 
     func testNoticePlansContainOnlyFutureEventsForTheirCurrentState() {

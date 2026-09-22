@@ -18,7 +18,7 @@ A real installed build 1000 checked the public GitHub feed and updated to build 
 2. The menu opened directly below its status item and showed the active checkpoint session alongside the update.
 3. `Remind Me Later` dismissed Sparkle's prompt while preserving the tray indicator and update action.
 4. `Install Update`, followed by `Install and Relaunch`, downloaded the published archive and relaunched the application in `/Applications/Focus Island.app` at build 1002.
-5. The original session ID, start/checkpoint/hard-stop timestamps, and timer/theme settings matched exactly after installation. The session was still at its checkpoint. One app process was running.
+5. The original session ID, start/checkpoint/hard-stop timestamps, and timer settings matched exactly after installation. The session was still at its checkpoint. One app process was running.
 6. The installed universal bundle passed strict code-signature and configuration validation. A subsequent manual check displayed `You’re up to date!` and cleared the availability indicator.
 7. Disabling automatic checks in Settings persisted the change. Re-enabling restored the original enabled setting. Notification permission remained enabled.
 8. The installed release passed popup dismissal checks and desktop/maximized/full-screen visibility, hover, menu access, and two full-screen round trips without changing the session. Two earlier harness attempts did not enter full screen despite successful AXPress return values; those are not passing evidence. The completed run used real mouse clicks for the fixture’s full-screen button and independently verified the Space and foreground app.
