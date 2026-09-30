@@ -86,8 +86,13 @@ def main():
     capture("continued-from-island")
     tool("move", "100", "400")
     wait_for("hardStopReached")
-    capture("hard-stop")
+    capture("hard-stop-collapsed")
+    assert "id=island-controls" not in tool("tree", APP, "10"), "unattended hard stop must stay collapsed"
+    tool("move", "855", "15")
+    time.sleep(0.5)
+    assert "id=island-controls" in tool("tree", APP, "10")
     assert "Time to get up and move" in tool("tree", APP, "10")
+    capture("hard-stop-hovered")
     press("Start Break")
     broken = wait_for("onBreak")
     assert 0 < broken["breakEndAt"] - time.time() <= 9.1

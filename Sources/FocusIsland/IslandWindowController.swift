@@ -53,15 +53,17 @@ final class IslandWindowController {
     private var selectedScreen: NSScreen?
     private var observers: [NSObjectProtocol] = []
     private var hovering = false
-    private var pinnedPrompt = false
     private var menuOpen = false
     private var displayedState: SessionState = .idle
     private var pointerTimer: AnyCancellable?
     private var suppressed: Bool { !panel.isOnActiveSpace }
     private var pointerMonitors: [Any] = []
+    private let pointerLocation: () -> NSPoint
 
-    init(model: SessionController, openMenu: @escaping () -> Void) {
+    init(model: SessionController, openMenu: @escaping () -> Void,
+         pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }) {
         self.model = model
+        self.pointerLocation = pointerLocation
         panel = PassivePanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.title = "Focus Island"
         // Keep the notch utility available on desktop and full-screen Spaces.
@@ -99,10 +101,9 @@ final class IslandWindowController {
         model.$snapshot.map(\.state).removeDuplicates().sink { [weak self] state in
             guard let self else { return }
             self.displayedState = state
-            self.pinnedPrompt = state == .hardStopReached
             self.cancelHoverWork()
             self.reposition()
-            self.setExpanded((self.hovering || self.pinnedPrompt) && !self.menuOpen)
+            self.setExpanded(self.hovering && !self.menuOpen)
         }.store(in: &subscriptions)
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.chooseScreen(); self?.reposition(); self?.updatePointer() }
@@ -114,8 +115,8 @@ final class IslandWindowController {
                 self.cancelHoverWork()
                 self.animationTimer?.cancel()
                 self.animationTimer = nil
-                self.presentation.expanded = self.pinnedPrompt && !self.menuOpen
-                self.presentation.expansion = self.presentation.expanded ? 1 : 0
+                self.presentation.expanded = false
+                self.presentation.expansion = 0
                 self.chooseScreen()
                 self.reposition()
                 self.updateVisibility()
@@ -134,7 +135,7 @@ final class IslandWindowController {
         menuOpen = open
         cancelHoverWork()
         hovering = false
-        setExpanded(!open && pinnedPrompt)
+        setExpanded(false)
         updatePointer()
     }
     private func updateVisibility() {
@@ -145,22 +146,20 @@ final class IslandWindowController {
             animationTimer?.cancel()
             animationTimer = nil
             hovering = false
-            let pinned = pinnedPrompt && !menuOpen
-            if presentation.expanded != pinned { presentation.expanded = pinned }
-            let progress: CGFloat = pinned ? 1 : 0
-            if presentation.expansion != progress { presentation.expansion = progress }
+            if presentation.expanded { presentation.expanded = false }
+            if presentation.expansion != 0 { presentation.expansion = 0 }
             panel.ignoresMouseEvents = true
         } else {
             updatePointer()
         }
     }
     private func chooseScreen() {
-        selectedScreen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main ?? NSScreen.screens.first
+        selectedScreen = NSScreen.screens.first { NSMouseInRect(pointerLocation(), $0.frame, false) } ?? NSScreen.main ?? NSScreen.screens.first
         presentation.attachedToNotch = (selectedScreen?.safeAreaInsets.top ?? 0) > 0
         panel.hasShadow = !presentation.attachedToNotch
     }
     private func pointerIsInside() -> Bool {
-        let point = NSEvent.mouseLocation
+        let point = pointerLocation()
         guard panel.isVisible, !suppressed, !menuOpen, panel.isOnActiveSpace, NSMouseInRect(point, panel.frame, false) else { return false }
         return IslandGeometry.containsPointer(point, canvas: panel.frame,
             headerWidth: presentation.attachedToNotch ? presentation.notchWidth + presentation.leadingWing + presentation.trailingWing : 224,
@@ -191,9 +190,9 @@ final class IslandWindowController {
             expand = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.10, execute: work)
         }
-        else if !inside && !pinnedPrompt {
+        else if !inside {
             let work = DispatchWorkItem { [weak self] in
-                guard let self, self.hoverGeneration == generation, !self.hovering, !self.pinnedPrompt else { return }
+                guard let self, self.hoverGeneration == generation, !self.hovering else { return }
                 if self.pointerIsInside() { return }
                 self.setExpanded(false)
             }

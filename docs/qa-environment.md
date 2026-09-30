@@ -1,5 +1,7 @@
 # QA environment
 
+For the hover controller regression, run `./scripts/test-island-hover.sh` from a logged-in macOS display session. It uses the actual native controller with a controlled pointer position and fixture model/view, and requires no Accessibility permission. It covers every session state, including hard-stop restoration, pointer exit, menu dismissal, and Space reset. It does not replace visual layout or full-screen UI checks.
+
 `scripts/ui-tool.swift` is a small native helper for QA. Build it from the project root:
 
 ```zsh

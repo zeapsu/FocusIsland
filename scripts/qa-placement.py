@@ -100,7 +100,12 @@ qa.wait_for("hardStopReached")
 assert island_visible(), "hard stop must remain visible in fullscreen"
 assert fixture_fullscreen() is True
 assert "Time to get up and move" in qa.tool("tree", qa.APP, "7")
-qa.capture("fullscreen-hard-stop-visible")
+assert "id=island-controls" not in qa.tool("tree", qa.APP, "7"), "unattended fullscreen hard stop must stay collapsed"
+qa.capture("fullscreen-hard-stop-collapsed")
+qa.tool("move", "855", "15")
+time.sleep(0.5)
+assert "id=island-controls" in qa.tool("tree", qa.APP, "7")
+qa.capture("fullscreen-hard-stop-hovered")
 qa.press("Start Break")
 qa.wait_for("onBreak")
 qa.wait_for("idle")

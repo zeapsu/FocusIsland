@@ -89,7 +89,9 @@ struct IslandView: View {
             let trailing = island.trailingWing + (expandedWing - island.trailingWing) * island.expansion
             HStack(spacing: 0) {
                 Group {
-                    if model.clockText.isEmpty {
+                    if model.snapshot.state == .hardStopReached {
+                        Text("Move").font(.system(size: 12, weight: .semibold)).foregroundStyle(palette.warning)
+                    } else if model.clockText.isEmpty {
                         Image(systemName: model.icon).foregroundStyle(palette.accent)
                     } else {
                         Text(model.clockText).font(.system(size: 12, weight: .semibold, design: .monospaced)).monospacedDigit()
@@ -111,8 +113,9 @@ struct IslandView: View {
             }.foregroundStyle(palette.text)
         } else {
             HStack(spacing: 8) {
-                Image(systemName: model.icon).foregroundStyle(palette.accent)
-                Text(model.title).font(.system(size: 12, weight: .medium))
+                Image(systemName: model.icon).foregroundStyle(model.snapshot.state == .hardStopReached ? palette.warning : palette.accent)
+                Text(model.snapshot.state == .hardStopReached ? "Time to move" : model.title)
+                    .font(.system(size: 12, weight: .medium))
                 Spacer(minLength: 4)
                 Text(model.clockText).font(.system(size: 12, weight: .semibold, design: .monospaced)).monospacedDigit()
             }.padding(.horizontal, 14).foregroundStyle(palette.text)
