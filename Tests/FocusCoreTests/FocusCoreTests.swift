@@ -180,26 +180,29 @@ final class FocusCoreTests: XCTestCase {
         XCTAssertEqual(notificationPlan(snapshot: engine.snapshot, now: origin.addingTimeInterval(50 * 60)).first?.title, "Break complete.")
     }
 
-    func testIslandGeometryUsesVisibleFrameSafeAreaAndDisplayCenter() {
-        let display = rect(0, 0, 1_710, 1_107)
-        let visible = rect(0, 0, 1_710, 1_073)
-        XCTAssertEqual(
-            IslandGeometry.frame(display: display, visible: visible, safeAreaTop: 33, size: CGSize(width: 224, height: 38)),
-            rect(743, 1_031, 224, 38)
-        )
-        XCTAssertEqual(
-            IslandGeometry.frame(display: display, visible: visible, safeAreaTop: 33, size: CGSize(width: 340, height: 202)),
-            rect(685, 867, 340, 202)
-        )
-        XCTAssertEqual(
-            IslandGeometry.frame(display: display, visible: display, safeAreaTop: 33, size: CGSize(width: 224, height: 38)),
-            rect(743, 1_032, 224, 38)
-        )
-        let secondary = rect(-1_440, 0, 1_440, 900)
-        XCTAssertEqual(
-            IslandGeometry.frame(display: secondary, visible: secondary, safeAreaTop: 0, size: CGSize(width: 224, height: 38)),
-            rect(-832, 858, 224, 38)
-        )
+    func testExternalIslandFitsInsideMenuBarAndKeepsAnchor() {
+        let display = rect(0, 0, 3440, 1440)
+        let visible = rect(0, 0, 3440, 1410)
+        let compact = IslandGeometry.frame(display: display, visible: visible, safeAreaTop: 0, size: CGSize(width: 224, height: 24))
+        XCTAssertEqual(compact, rect(1608, 1413, 224, 24))
+        XCTAssertGreaterThanOrEqual(compact.minY, visible.maxY)
+        XCTAssertLessThanOrEqual(compact.maxY, display.maxY)
+        let expanded = IslandGeometry.frame(display: display, visible: visible, safeAreaTop: 0, size: CGSize(width: 400, height: 142))
+        XCTAssertEqual(compact.maxY, expanded.maxY)
+        let hidden = IslandGeometry.frame(display: display, visible: display, safeAreaTop: 0, size: CGSize(width: 224, height: 24), menuBarHeight: 30)
+        XCTAssertEqual(hidden, compact)
+    }
+
+    func testMenuBarWindowMatchingHandlesHiddenAndOffsetDisplays() {
+        let display = rect(0, 0, 3440, 1440)
+        let menu = rect(0, 0, 3440, 30)
+        XCTAssertEqual(IslandGeometry.menuBarFrame(display: display, primaryDisplayTop: 1440, menuWindowBounds: [menu]), rect(0, 1410, 3440, 30))
+        for bounds in [[], [rect(0, -30, 3440, 30)], [rect(-2000, 0, 3440, 30)], [rect(0, 0, 3440, 400)]] {
+            XCTAssertNil(IslandGeometry.menuBarFrame(display: display, primaryDisplayTop: 1440, menuWindowBounds: bounds))
+        }
+        let above = rect(-1440, 1440, 1440, 900)
+        XCTAssertEqual(IslandGeometry.menuBarFrame(display: above, primaryDisplayTop: 1440, menuWindowBounds: [menu, rect(-1440, -900, 1440, 24)]), rect(-1440, 2316, 1440, 24))
+        XCTAssertNil(IslandGeometry.menuBarFrame(display: above, primaryDisplayTop: 1440, menuWindowBounds: [menu]))
     }
 
     func testNotchBandKeepsCameraCutoutEmpty() {

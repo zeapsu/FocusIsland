@@ -56,9 +56,9 @@ Settings use whole minutes: checkpoint 1–239, hard stop 2–240 and greater th
 
 ## Design and window behavior
 
-On a notched Mac, the compact island occupies the menu-bar band around the physical camera area. Hover widens that shell across the menu bar and moves the timer and state icon outward as controls appear below. On a rectangular display, it becomes a compact pill below the menu bar.
+On a notched Mac, the compact island occupies the menu-bar band around the physical camera area. Hover widens that shell across the menu bar and moves the timer and state icon outward as controls appear below. On a rectangular display, a compact timer sits inside the center of the visible menu bar. It stays within that strip so it does not cover app toolbars. Hover reveals the controls; leaving folds them away.
 
-The island follows the current desktop Space and remains available over ordinary and maximized windows and in native full-screen apps. Its compact form stays in the notch band; hover expands it into controls without taking keyboard focus. One island follows the cursor display when the menu opens; multi-display behavior beyond that rule remains under active stabilization.
+On physical-notch displays, the island remains available in native full-screen apps. On rectangular displays, it disappears when the system menu bar hides, including in full screen, and returns when the bar becomes visible. Expanded controls stay usable while the pointer is over their body and disappear after leaving if the bar has hidden. Hover never takes keyboard focus. One island follows the cursor display when the menu opens. The external-display version uses public window bounds to observe the actual menu-bar strip and stays hidden if that strip cannot be matched; live multi-display arrangements remain under active stabilization.
 
 ## Updates and privacy
 

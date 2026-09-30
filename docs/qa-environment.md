@@ -1,5 +1,9 @@
 # QA environment
 
+For external-display placement, the current regression also injects menu-bar availability. It checks the real controller hides in every state when the bar is absent, restores a compact pill when it returns, and allows only hovered controls below the header to remain usable during auto-hide. Header hover and Space changes cannot pin that exception.
+
+For current live UI verification, use the Computer Use tools to operate the disposable fullscreen fixture. Verify the island's WindowServer presence and the app's DEBUG `--qa-artifacts` snapshots on the display under test. The September 30 external-display run used a 3440×1440 rectangular display with a 30-point menu bar. The compact app render was 24 points high and wholly inside that bar. Older scripts below have fixed coordinates and historical full-screen visibility expectations; do not treat their full-screen-available assertions as current acceptance criteria for an external display.
+
 For the hover controller regression, run `./scripts/test-island-hover.sh` from a logged-in macOS display session. It uses the actual native controller with a controlled pointer position and fixture model/view, and requires no Accessibility permission. It covers every session state, including hard-stop restoration, pointer exit, menu dismissal, and Space reset. It does not replace visual layout or full-screen UI checks.
 
 `scripts/ui-tool.swift` is a small native helper for QA. Build it from the project root:

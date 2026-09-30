@@ -15,7 +15,27 @@ import FocusCore
     @Published var canvasHeight: CGFloat = 180
     @Published var expandedWidth: CGFloat = 400
     @Published var expandedHeight: CGFloat = 150
-    var headerHeight: CGFloat { attachedToNotch ? notchHeight : 38 }
+    @Published var menuBarHeight: CGFloat = 24
+    var headerHeight: CGFloat { attachedToNotch ? notchHeight : IslandGeometry.menuBarHeaderHeight(menuBarHeight) }
+}
+
+/// Public window metadata is per-display and follows the real auto-hidden bar.
+/// NSMenu.menuBarVisible/currentSystemPresentationOptions describe this app
+/// and can remain unchanged when a different app enters full screen.
+@MainActor enum SystemMenuBar {
+    static func frame(on screen: NSScreen) -> CGRect? {
+        guard let primary = NSScreen.screens.first(where: {
+                  ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == CGMainDisplayID()
+              }),
+              let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return nil }
+        let bounds = windows.compactMap { window -> CGRect? in
+            guard window[kCGWindowLayer as String] as? Int == Int(CGWindowLevelForKey(.mainMenuWindow)),
+                  (window[kCGWindowAlpha as String] as? Double ?? 1) > 0,
+                  let value = window[kCGWindowBounds as String] as? [String: Any] else { return nil }
+            return CGRect(dictionaryRepresentation: value as CFDictionary)
+        }
+        return IslandGeometry.menuBarFrame(display: screen.frame, primaryDisplayTop: primary.frame.maxY, menuWindowBounds: bounds)
+    }
 }
 
 private final class PassivePanel: NSPanel {
@@ -56,14 +76,18 @@ final class IslandWindowController {
     private var menuOpen = false
     private var displayedState: SessionState = .idle
     private var pointerTimer: AnyCancellable?
-    private var suppressed: Bool { !panel.isOnActiveSpace }
+    private var menuBarAvailable = true
+    private var suppressed: Bool { !panel.isOnActiveSpace || !menuBarAvailable }
     private var pointerMonitors: [Any] = []
     private let pointerLocation: () -> NSPoint
+    private let menuBarFrame: @MainActor (NSScreen) -> CGRect?
 
     init(model: SessionController, openMenu: @escaping () -> Void,
-         pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }) {
+         pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
+         menuBarFrame: @escaping @MainActor (NSScreen) -> CGRect? = SystemMenuBar.frame) {
         self.model = model
         self.pointerLocation = pointerLocation
+        self.menuBarFrame = menuBarFrame
         panel = PassivePanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.title = "Focus Island"
         // Keep the notch utility available on desktop and full-screen Spaces.
@@ -71,7 +95,7 @@ final class IslandWindowController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        panel.hasShadow = false
         panel.hidesOnDeactivate = false
         panel.isFloatingPanel = true
         panel.level = .statusBar
@@ -89,12 +113,11 @@ final class IslandWindowController {
         panel.contentView = host
         chooseScreen()
         reposition()
-        panel.orderFrontRegardless()
         updateVisibility()
         // Tracking events can be missed by nonactivating panels, especially after a resize.
         // Checking the pointer against the current frame also avoids a gap between hover areas.
         pointerTimer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect().sink { [weak self] _ in
-            self?.updatePointer()
+            self?.updateVisibility()
         }
         if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged], handler: { [weak self] _ in self?.updatePointer() }) { pointerMonitors.append(monitor) }
         if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged], handler: { [weak self] event in self?.updatePointer(); return event }) { pointerMonitors.append(monitor) }
@@ -103,10 +126,11 @@ final class IslandWindowController {
             self.displayedState = state
             self.cancelHoverWork()
             self.reposition()
-            self.setExpanded(self.hovering && !self.menuOpen)
+            self.setExpanded(self.hovering && !self.menuOpen && !self.suppressed)
+            self.updateVisibility()
         }.store(in: &subscriptions)
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.chooseScreen(); self?.reposition(); self?.updatePointer() }
+            Task { @MainActor in self?.chooseScreen(); self?.reposition(); self?.updateVisibility() }
         })
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
@@ -139,8 +163,25 @@ final class IslandWindowController {
         updatePointer()
     }
     private func updateVisibility() {
-        // A window can remain ordered (isVisible) while absent from the active
-        // Space. Do not order it out or reassign it while Spaces are changing.
+        guard let screen = selectedScreen else { return }
+        if presentation.attachedToNotch {
+            menuBarAvailable = true
+        } else {
+            let band = menuBarFrame(screen)
+            if let band, presentation.menuBarHeight != band.height {
+                presentation.menuBarHeight = band.height
+                reposition()
+            }
+            // Once deliberately expanded, controls stay usable as the pointer
+            // enters the body below an auto-hidden bar. Leaving hides it at once.
+            let inBody = pointerLocation().y < panel.frame.maxY - presentation.headerHeight
+            let hoveredBody = presentation.expanded && inBody && panel.isVisible && panel.isOnActiveSpace && !menuOpen && pointerWithinSurface()
+            menuBarAvailable = band != nil || hoveredBody
+            if !menuBarAvailable, panel.isVisible { panel.orderOut(nil) }
+        }
+        if menuBarAvailable, !panel.isVisible { panel.orderFrontRegardless() }
+        // An ordered window can be absent from the active Space. Keep it
+        // noninteractive until AppKit reports membership in the active Space.
         if suppressed {
             cancelHoverWork()
             animationTimer?.cancel()
@@ -156,12 +197,20 @@ final class IslandWindowController {
     private func chooseScreen() {
         selectedScreen = NSScreen.screens.first { NSMouseInRect(pointerLocation(), $0.frame, false) } ?? NSScreen.main ?? NSScreen.screens.first
         presentation.attachedToNotch = (selectedScreen?.safeAreaInsets.top ?? 0) > 0
-        panel.hasShadow = !presentation.attachedToNotch
+        // The compact external pill must not cast a shadow into app toolbars.
+        panel.hasShadow = false
+        if let screen = selectedScreen {
+            let reserved = screen.frame.maxY - screen.visibleFrame.maxY
+            if (20...64).contains(reserved) { presentation.menuBarHeight = reserved }
+        }
     }
     private func pointerIsInside() -> Bool {
         let point = pointerLocation()
         guard panel.isVisible, !suppressed, !menuOpen, panel.isOnActiveSpace, NSMouseInRect(point, panel.frame, false) else { return false }
-        return IslandGeometry.containsPointer(point, canvas: panel.frame,
+        return pointerWithinSurface()
+    }
+    private func pointerWithinSurface() -> Bool {
+        return IslandGeometry.containsPointer(pointerLocation(), canvas: panel.frame,
             headerWidth: presentation.attachedToNotch ? presentation.notchWidth + presentation.leadingWing + presentation.trailingWing : 224,
             headerHeight: presentation.headerHeight,
             headerOffset: presentation.attachedToNotch ? (presentation.trailingWing - presentation.leadingWing) / 2 : 0,
@@ -253,7 +302,7 @@ final class IslandWindowController {
         // A fixed transparent canvas keeps window motion out of the shape animation.
         // A shared progress value morphs the surface and input path together.
         let size = NSSize(width: presentation.canvasWidth, height: presentation.canvasHeight)
-        let frame = IslandGeometry.frame(display: screen.frame, visible: screen.visibleFrame, safeAreaTop: screen.safeAreaInsets.top, size: size, attachedToNotch: presentation.attachedToNotch)
+        let frame = IslandGeometry.frame(display: screen.frame, visible: screen.visibleFrame, safeAreaTop: screen.safeAreaInsets.top, size: size, attachedToNotch: presentation.attachedToNotch, menuBarHeight: presentation.menuBarHeight)
         if panel.frame != frame { panel.setFrame(frame, display: true) }
     }
 }
