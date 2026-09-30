@@ -19,6 +19,8 @@ jobs:
         run: ./scripts/test-core.sh
       - name: Run XCTest suite
         run: swift test
+      - name: Run native hover controller regression
+        run: ./scripts/test-island-hover.sh
       - name: Build universal release bundle
         env:
           CI_RUN_NUMBER: ${{ github.run_number }}

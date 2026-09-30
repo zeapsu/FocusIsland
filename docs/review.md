@@ -1,6 +1,12 @@
 # Independent review
 
-Review date: September 21, 2026.
+Latest review: September 30, 2026. Earlier reviews below are historical.
+
+## Hover-only reminders, issue #8
+
+A separate read-only reviewer inspected removal of hard-stop pinning from state changes, pointer exit, menu dismissal, Space reset, and suppressed visibility. No material findings. Generation checks still cancel stale hover work, transitions while hovered keep controls available, and later pointer exit collapses them. The defaulted pointer-location seam preserves the production `NSEvent.mouseLocation` path and lets native controller tests control their input.
+
+Both display modes retain readable, color-independent movement reminders: **Move** beside a walking icon on the attached notch and **Time to move** on the floating rectangular-display pill. The controller tests exercise real native windows, animation, and delayed work across every state. They use fixture model/view collaborators and therefore do not establish full visual layout, real Space transitions, Reduce Motion, or suppressed-Space behavior. The app's selected display was rectangular during this correction. See the [QA report](qa-report.md) for executed checks and the Computer Use interaction limitation. Prior reviews of hard-stop pinning below describe the behavior this correction removes.
 
 ## GitHub releases and Sparkle updates
 

@@ -50,7 +50,7 @@ The timer moves through a small explicit state machine:
 
 `idle → focus before checkpoint → checkpoint → focus after checkpoint → hard stop → break → idle`
 
-At the checkpoint, **Continue Focus** preserves the existing hard-stop deadline. **Start Break** ends focus and begins the configured break. At the hard stop, the app asks you to get up and move; it never silently starts another focus session. Cancelling ends the current session.
+At the checkpoint, **Continue Focus** preserves the existing hard-stop deadline. **Start Break** ends focus and begins the configured break. At the hard stop, the compact notch says **Move** beside a walking icon. Hover to see the full reminder and **Start Break** or **End Session** controls; moving away collapses the banner in every session state. The app never silently starts another focus session. Cancelling ends the current session.
 
 Settings use whole minutes: checkpoint 1–239, hard stop 2–240 and greater than checkpoint, and break 1–120. New duration settings apply to sessions started after the change; they do not move an active deadline.
 

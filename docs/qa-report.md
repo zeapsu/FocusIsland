@@ -1,5 +1,13 @@
 # Verification report
 
+## Hover-only reminders, issue #8
+
+The hard-stop exception that pinned the island open has been removed. Expansion now follows hover in every session state, including after menu dismissal, relaunch, and Space resets. The existing short exit delay still prevents jitter. A notched header says **Move** beside the walking icon at the hard stop; the rectangular-display pill says **Time to move**. Full reminder text and actions remain available on hover or in the menu. Earlier reports below of an automatically expanded hard-stop banner describe the previous behavior.
+
+The new `scripts/test-island-hover.sh` runs the actual AppKit controller, native panel, animation, delayed work, and geometry with a controlled pointer and small model/view fixtures. It passes 31 assertions across all six states, restored hard stops, menu and Space resets, transitions while hovered, brief pointer transit, collapse reversal, and keyboard-focus preservation. The same checks fail against the prior controller at “restored hard stop starts collapsed without hover.” This tests controller behavior, not the full SwiftUI layout or native full-screen transitions.
+
+Core checks pass 111 assertions. Debug and release builds and bundle verification pass. Computer Use inspected the actual installed pinned banner and an isolated debug build's compact **Time to move** reminder. The debug render occupies only the 38-point header, with the rest of its fixed canvas transparent. The test display selected by the app is rectangular; the physical notch layout and full-screen lifecycle were not exercised in this correction. Computer Use click/drag attempts on the floating panel returned `AXError.notImplemented`, so interactive manual hover QA is not claimed. The existing lifecycle and placement scripts now explicitly check an unattended collapsed hard stop before hovering to expose its controls. Evidence is under `qa/collapsed-reminders/`.
+
 ## Current appearance
 
 Version 1.1.1 removes the theme selector and both Solarized palettes. The attached notch stays black, while the menu and Settings follow macOS appearance. Loading older settings ignores their retired theme field without resetting custom durations. Earlier theme-selection checks below describe historical builds, not current options.
