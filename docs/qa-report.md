@@ -1,5 +1,21 @@
 # Verification report
 
+## External-display menu-bar placement, issue #10
+
+September 30, 2026. This section supersedes earlier external-display placement and fullscreen-availability results. Version 1.1.3 keeps the compact timer inside the actual menu bar on rectangular displays and hides it with that bar.
+
+- Debug and release app bundles built; release signature, framework, version, and updater metadata verification passed.
+- Portable checks passed 117 assertions. Native controller checks passed 57 assertions, including all six states, hidden-bar recovery, header/body hover, menu dismissal, and Space-reset cleanup. The native fixture uses the real controller, panel, animation, and delayed work with controlled pointer/bar availability and fixture model/view.
+- Computer Use operated a disposable native fullscreen fixture on the current 3440×1440 external display, without changing user documents. The old installed app remained on screen at WindowServer layer 25, Y=34 while the system's menu-bar window was absent. The corrected app disappeared during native fullscreen and returned compact on desktop. The final build was relaunched inside fullscreen and repeated the hide/return checks.
+- On normal and maximized desktop, the actual app render's opaque header was 24 points high within a 30-point menu band. Canvas frame `{{1520, 1287}, {400, 150}}` places that header at Y=3–27 from the screen top. Its transparent body and absent shadow do not cover toolbar content while compact.
+- The production session/settings were preserved; QA used a separate bundle identifier and preference suite. The installed production app was restored after the disposable test app stopped.
+
+Limits: Computer Use could activate native fixture buttons and inspect the actual app, but its pointer actions did not move the system pointer reliably. Direct visual hover and fullscreen menu-reveal/body travel are therefore **not** reported as manually passed. Their transitions are covered by the controlled native tests. No physical-notch display, changed display scale, or live multi-monitor arrangement was available for this run; deterministic geometry checks cover offset/negative display coordinates and unchanged notch attachment. XCTest needs the full Xcode environment and runs in GitHub CI; local Command Line Tools do not provide XCTest.
+
+The system-menu lookup reads public WindowServer bounds and layer metadata, without window titles or contents. `NSMenu.menuBarVisible` remained true and `currentSystemPresentationOptions` remained zero during the observed foreign fullscreen session, so those values are insufficient for this correction. Matching fails hidden during missing or transitional menu-band geometry. A local profile measured about 1.7 ms per window-list read; the existing 100 ms controller clock only performs this lookup on rectangular displays.
+
+Local evidence is ignored under `qa/external-menu-bar/`, including native-test/build logs, final fullscreen/desktop snapshots, and the compact app render.
+
 ## Hover-only reminders, issue #8
 
 The hard-stop exception that pinned the island open has been removed. Expansion now follows hover in every session state, including after menu dismissal, relaunch, and Space resets. The existing short exit delay still prevents jitter. A notched header says **Move** beside the walking icon at the hard stop; the rectangular-display pill says **Time to move**. Full reminder text and actions remain available on hover or in the menu. Earlier reports below of an automatically expanded hard-stop banner describe the previous behavior.

@@ -2,6 +2,12 @@
 
 Latest review: September 30, 2026. Earlier reviews below are historical.
 
+## External-display placement and menu-bar visibility, issue #10
+
+A fresh read-only reviewer checked the external geometry, per-display WindowServer menu lookup, visibility ordering, input handling, and regression tests. It found a header-hover exception that could keep the island above a newly hidden menu bar. The fix restricts that exception to the expanded body below the header; native tests now cover the formerly failing header case and clear the body exception on Space changes. The coordinate conversion resolves the actual primary display via `CGMainDisplayID`, and fully transparent menu windows cannot expose the island.
+
+The second review found no remaining material issue. Build, core checks, and whitespace checks passed independently. Actual external-display fullscreen hide/desktop recovery and native controller regressions are recorded in the [QA report](qa-report.md). Direct visual pointer-hover, physical-notch hardware, and live multi-display checks remain limited as stated there. Public menu-window geometry is a conservative observation of current system UI; it does not use foreground-app window sizes as a fullscreen heuristic.
+
 ## Hover-only reminders, issue #8
 
 A separate read-only reviewer inspected removal of hard-stop pinning from state changes, pointer exit, menu dismissal, Space reset, and suppressed visibility. No material findings. Generation checks still cancel stale hover work, transitions while hovered keep controls available, and later pointer exit collapses them. The defaulted pointer-location seam preserves the production `NSEvent.mouseLocation` path and lets native controller tests control their input.
