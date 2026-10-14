@@ -25,6 +25,25 @@ public enum IslandGeometry {
     public static func menuBarHeaderHeight(_ menuBarHeight: CGFloat) -> CGFloat {
         min(28, max(18, menuBarHeight - 6))
     }
+
+    /// macOS 27 reports a fractional notch inset (33.5 pt) under a 34 pt menu bar.
+    /// AppKit snaps window frames to whole points, so a fractional canvas height
+    /// shifts the drawn shell below the screen edge. Round up to fill the band.
+    public static func notchHeaderHeight(safeAreaTop: CGFloat) -> CGFloat {
+        safeAreaTop.rounded(.up)
+    }
+
+    /// macOS 27 draws overflowed status items (the `<<` control) beside the notch,
+    /// inside the system menu-bar window. Earlier releases never put items there,
+    /// and their opaque menu-bar material would tint a window below it.
+    public static func yieldsToMenuBarOverflow(macOSMajor: Int) -> Bool { macOSMajor >= 27 }
+
+    /// While yielding, a collapsed island starts hover only from the camera housing
+    /// or trailing wing, so reaching for an overflow item over the leading wing
+    /// does not expand the island on top of it.
+    public static func startsHover(at x: CGFloat, notchMinX: CGFloat, yielding: Bool) -> Bool {
+        !yielding || x >= notchMinX
+    }
     /// The drawing and input system share this exact path in local top-left coordinates.
     public static func surfacePath(size: CGSize, headerWidth: CGFloat, headerHeight: CGFloat,
                                    headerOffset: CGFloat, expandedHeight: CGFloat,
