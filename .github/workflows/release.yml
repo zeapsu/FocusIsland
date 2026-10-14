@@ -78,16 +78,22 @@ jobs:
         run: |
           feed_url='https://github.com/zeapsu/FocusIsland/releases/latest/download/appcast.xml'
           asset_url="https://github.com/zeapsu/FocusIsland/releases/download/$RELEASE_TAG/Focus-Island-$(tr -d '[:space:]' < VERSION)-$BUILD_NUMBER.zip"
-          # GitHub can briefly serve the previous latest-release redirect.
-          # HTTP 200 alone does not mean the new signed feed has propagated.
+          # GitHub can serve the previous latest-release redirect for several
+          # minutes. HTTP 200 alone does not mean the new signed feed has
+          # propagated, so wait up to 10 minutes, backing off from 5 s to 30 s.
           published=false
-          for attempt in {1..20}; do
+          deadline=$((SECONDS + 600))
+          delay=5
+          attempt=1
+          while (( SECONDS < deadline )); do
             if curl --fail --location --silent --show-error "$feed_url" -o /tmp/public-appcast.xml && cmp -s /tmp/public-appcast.xml dist/release/appcast.xml; then
               published=true
               break
             fi
-            echo "Waiting for the expected signed feed (attempt $attempt)."
-            sleep 3
+            echo "Waiting ${delay}s for the expected signed feed (attempt $attempt)."
+            sleep "$delay"
+            delay=$(( delay * 2 > 30 ? 30 : delay * 2 ))
+            attempt=$((attempt + 1))
           done
           [[ "$published" == true ]] || { echo 'The public feed did not converge to this release.' >&2; exit 1; }
           grep -Fq "$asset_url" /tmp/public-appcast.xml
