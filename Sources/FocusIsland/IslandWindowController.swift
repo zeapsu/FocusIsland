@@ -73,6 +73,8 @@ final class IslandWindowController {
     private var selectedScreen: NSScreen?
     private var observers: [NSObjectProtocol] = []
     private var hovering = false
+    private let yieldsToOverflow = IslandGeometry.yieldsToMenuBarOverflow(macOSMajor: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
+    private var notchMinX: CGFloat = 0
     private var menuOpen = false
     private var displayedState: SessionState = .idle
     private var pointerTimer: AnyCancellable?
@@ -206,8 +208,10 @@ final class IslandWindowController {
     }
     private func pointerIsInside() -> Bool {
         let point = pointerLocation()
-        guard panel.isVisible, !suppressed, !menuOpen, panel.isOnActiveSpace, NSMouseInRect(point, panel.frame, false) else { return false }
-        return pointerWithinSurface()
+        guard panel.isVisible, !suppressed, !menuOpen, panel.isOnActiveSpace, NSMouseInRect(point, panel.frame, false),
+              pointerWithinSurface() else { return false }
+        let yielding = yieldsToOverflow && presentation.attachedToNotch && !hovering && presentation.expansion == 0
+        return IslandGeometry.startsHover(at: point.x, notchMinX: notchMinX, yielding: yielding)
     }
     private func pointerWithinSurface() -> Bool {
         return IslandGeometry.containsPointer(pointerLocation(), canvas: panel.frame,
@@ -220,6 +224,12 @@ final class IslandWindowController {
     private func updatePointer() {
         let inside = pointerIsInside()
         panel.ignoresMouseEvents = !inside
+        // A collapsed notch shell sits just under the system menu-bar window so
+        // overflowed status items draw over it and receive clicks. Hover raises
+        // it before the expand delay, so header clicks still reach the island.
+        let lowered = yieldsToOverflow && presentation.attachedToNotch && !inside && !presentation.expanded && presentation.expansion == 0
+        let level = lowered ? NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue - 1) : .statusBar
+        if panel.level != level { panel.level = level }
         if inside != hovering { hover(inside) }
     }
     private func hover(_ inside: Bool) {
@@ -291,6 +301,7 @@ final class IslandWindowController {
             notchWidth = max(0, right.minX - left.maxX)
         } else { notchWidth = 0 }
         presentation.notchWidth = notchWidth
+        notchMinX = screen.auxiliaryTopLeftArea?.maxX ?? screen.frame.midX
         presentation.notchHeight = IslandGeometry.notchHeaderHeight(safeAreaTop: screen.safeAreaInsets.top)
         let expandedWidth = max(400, notchWidth + 200)
         presentation.leadingWing = displayedState == .idle ? 28 : 72
