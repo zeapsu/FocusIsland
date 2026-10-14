@@ -48,7 +48,7 @@ final class SessionController: ObservableObject {
     func refresh() {
         now = Date()
         let previous = engine.snapshot
-        if engine.refresh(now: now) { completionMessage = "Break complete. Ready when you are." }
+        if engine.refresh(now: now) { completionMessage = "Break complete." }
         publish(previous: previous, preservingDueNotices: true)
     }
 
@@ -136,12 +136,12 @@ final class SessionController: ObservableObject {
     }
     var detail: String {
         switch snapshot.state {
-        case .idle: return completionMessage ?? "A little awareness. Room to concentrate."
+        case .idle: return completionMessage ?? "Start a focus session when you're ready."
         case .focusBeforeCheckpoint: return "Check in in \(Self.format(max(0, (snapshot.checkpointAt ?? now).timeIntervalSince(now)), roundUp: true))"
-        case .checkpointReached: return "Keep going, or give yourself a break."
+        case .checkpointReached: return "Continue focusing or start a break."
         case .focusAfterCheckpoint: return "Movement break in \(Self.format(max(0, (snapshot.hardStopAt ?? now).timeIntervalSince(now)), roundUp: true))"
         case .hardStopReached: return "Stand up, stretch, and look away from the screen."
-        case .onBreak: return "Time to recharge. Focus can wait."
+        case .onBreak: return "Break in progress."
         }
     }
     var progress: Double {
