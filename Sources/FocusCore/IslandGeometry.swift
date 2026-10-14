@@ -25,6 +25,13 @@ public enum IslandGeometry {
     public static func menuBarHeaderHeight(_ menuBarHeight: CGFloat) -> CGFloat {
         min(28, max(18, menuBarHeight - 6))
     }
+
+    /// macOS 27 reports a fractional notch inset (33.5 pt) under a 34 pt menu bar.
+    /// AppKit snaps window frames to whole points, so a fractional canvas height
+    /// shifts the drawn shell below the screen edge. Round up to fill the band.
+    public static func notchHeaderHeight(safeAreaTop: CGFloat) -> CGFloat {
+        safeAreaTop.rounded(.up)
+    }
     /// The drawing and input system share this exact path in local top-left coordinates.
     public static func surfacePath(size: CGSize, headerWidth: CGFloat, headerHeight: CGFloat,
                                    headerOffset: CGFloat, expandedHeight: CGFloat,

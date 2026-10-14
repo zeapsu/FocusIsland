@@ -291,7 +291,7 @@ final class IslandWindowController {
             notchWidth = max(0, right.minX - left.maxX)
         } else { notchWidth = 0 }
         presentation.notchWidth = notchWidth
-        presentation.notchHeight = screen.safeAreaInsets.top
+        presentation.notchHeight = IslandGeometry.notchHeaderHeight(safeAreaTop: screen.safeAreaInsets.top)
         let expandedWidth = max(400, notchWidth + 200)
         presentation.leadingWing = displayedState == .idle ? 28 : 72
         presentation.trailingWing = 28
