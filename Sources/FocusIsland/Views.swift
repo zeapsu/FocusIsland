@@ -195,8 +195,8 @@ struct SettingsView: View {
         let palette = Palette.system
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 5) {
-                Text("Make room for focus.").font(.title2.weight(.semibold))
-                Text("A gentle checkpoint, then a clear time to move.").foregroundStyle(palette.secondaryText)
+                Text("Timer durations").font(.title2.weight(.semibold))
+                Text("A checkpoint partway through, then a hard stop to get up and move.").foregroundStyle(palette.secondaryText)
             }
             Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 14) {
                 durationRow("Checkpoint", value: $checkpoint, hint: "1–239 minutes")

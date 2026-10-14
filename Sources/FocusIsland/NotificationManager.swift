@@ -53,7 +53,7 @@ final class NotificationManager: NSObject, ObservableObject, UNUserNotificationC
         switch settings.authorizationStatus {
         case .authorized, .provisional, .ephemeral: permissionText = "Notifications enabled."
         case .denied: permissionText = "Notifications are off. Turn on Allow Notifications for Focus Island in System Settings."
-        case .notDetermined: permissionText = "Enable gentle checkpoint, movement and break reminders."
+        case .notDetermined: permissionText = "Get notified at the checkpoint, the hard stop and the end of a break."
         @unknown default: permissionText = "Your timer works independently of notifications."
         }
         // Apply permission changes to the current session without moving its deadlines.
