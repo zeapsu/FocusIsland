@@ -44,6 +44,26 @@ public enum IslandGeometry {
     public static func startsHover(at x: CGFloat, notchMinX: CGFloat, yielding: Bool) -> Bool {
         !yielding || x >= notchMinX
     }
+
+    /// How far right of the island's trailing wing the `<<` overflow control is
+    /// expected. It is the leftmost status item, so only its position is guessed.
+    public static let overflowControlReach: CGFloat = 44
+
+    /// Whether the wings stay folded into the notch after a click in another app.
+    /// A click just right of the trailing wing is taken as `<<` opening the
+    /// overflow. While folded, clicks on overflow items left of the notch keep the
+    /// fold; any other click, including `<<` again, restores the wings. A wrong
+    /// guess therefore lasts one click and never hides the timer for long.
+    public static func overflowFolded(after click: CGPoint, folded: Bool, menuBand: CGRect,
+                                      notchMinX: CGFloat, notchMaxX: CGFloat,
+                                      trailingWing: CGFloat) -> Bool {
+        let inBand = click.y >= menuBand.minY && click.y <= menuBand.maxY &&
+            click.x >= menuBand.minX && click.x <= menuBand.maxX
+        guard inBand else { return false }
+        if folded { return click.x < notchMinX }
+        let controlStart = notchMaxX + trailingWing
+        return click.x >= controlStart && click.x <= controlStart + overflowControlReach
+    }
     /// The drawing and input system share this exact path in local top-left coordinates.
     public static func surfacePath(size: CGSize, headerWidth: CGFloat, headerHeight: CGFloat,
                                    headerOffset: CGFloat, expandedHeight: CGFloat,
