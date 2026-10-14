@@ -60,6 +60,8 @@ On a notched Mac, the compact island occupies the menu-bar band around the physi
 
 On physical-notch displays, the island remains available in native full-screen apps. On rectangular displays, it disappears when the system menu bar hides, including in full screen, and returns when the bar becomes visible. Expanded controls stay usable while the pointer is over their body and disappear after leaving if the bar has hidden. Hover never takes keyboard focus. One island follows the cursor display when the menu opens. The external-display version uses public window bounds to observe the actual menu-bar strip and stays hidden if that strip cannot be matched; live multi-display arrangements remain under active stabilization.
 
+On macOS 27 and later, the collapsed notch island sits just under the system menu-bar window, so status items revealed by the `<<` overflow control draw over its left wing and stay clickable. Hover from the camera area or the right wing raises and expands it as before.
+
 ## Updates and privacy
 
 Release builds use Sparkle 2.10 for in-app update discovery. The app checks its HTTPS update feed daily by default; turn off **Automatically check for updates** in Settings at any time. The feed and each release archive are EdDSA signed and verified before extraction. The runtime updater has `sendsSystemProfile = false`, and the release configuration also sets `SUSendProfileInfo = false`.
