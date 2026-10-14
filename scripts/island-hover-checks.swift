@@ -116,6 +116,22 @@ struct IslandView: View {
         pointer = outside
         settle()
         expect(collapsed(), "final pointer exit collapses after re-entry")
+        if presentation.attachedToNotch, ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27 {
+            // macOS 27 draws overflowed status items beside the notch inside the menu-bar window.
+            model.snapshot = SessionSnapshot(state: .focusBeforeCheckpoint)
+            pointer = outside
+            settle()
+            expect(collapsed() && controller.panel.level.rawValue == NSWindow.Level.mainMenu.rawValue - 1, "collapsed notch orders under the menu-bar window")
+            pointer = NSPoint(x: screen.frame.midX - presentation.notchWidth / 2 - 10, y: headerPoint().y)
+            settle()
+            expect(collapsed() && controller.panel.ignoresMouseEvents, "leading wing leaves overflow items reachable")
+            pointer = headerPoint()
+            settle()
+            expect(presentation.expanded && controller.panel.level == .statusBar, "camera housing hover raises and expands the island")
+            pointer = outside
+            settle()
+            expect(collapsed() && controller.panel.level.rawValue == NSWindow.Level.mainMenu.rawValue - 1, "collapse returns the island under the menu bar")
+        }
         expect(app.keyWindow === originalKeyWindow, "passive controller updates preserve keyboard focus")
         if !presentation.attachedToNotch {
             expect(controller.panel.frame.maxY - presentation.headerHeight >= screen.frame.maxY - 30, "compact header stays within the actual menu-bar band")
