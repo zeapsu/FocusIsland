@@ -58,8 +58,9 @@ and is streamed through standard input. Output is
 ## Code signing
 
 Releases are signed with the project's self-signed certificate, "Focus Island
-Code Signing". Its SHA-1 fingerprint is tracked in
-`config/code-signing-certificate.txt`. macOS keys the Accessibility permission
+Code Signing", valid until 2046-10-10. Its SHA-1 fingerprint is tracked in
+`config/code-signing-certificate.txt`. The release job fails once the
+certificate is within a year of expiry. macOS keys the Accessibility permission
 to the app's designated requirement, which for this certificate is
 `identifier "local.focusisland.app" and certificate leaf = H"<fingerprint>"`.
 That requirement stays the same across builds, so the permission survives
@@ -83,9 +84,51 @@ One-time setup, in addition to the Sparkle key:
    build with `CODE_SIGN_IDENTITY="$(cat config/code-signing-certificate.txt)"`
    so local copies keep their Accessibility grant too.
 
-Sparkle accepts an update when either its EdDSA signature or its Apple code
-signature matches the installed app, so the one-time move from ad hoc to this
-certificate is authorized by the unchanged EdDSA key.
+Only the Sparkle EdDSA key authorizes updates. With
+`SUVerifyUpdateBeforeExtraction`, Sparkle checks the EdDSA signature before
+extracting; its code-signing fallback requires a Developer ID team and never
+applies to this app. The certificate only has to produce a valid signature,
+so the one-time move from ad hoc to it needed no special handling, and losing
+the EdDSA private key would still cut every user off from updates.
+
+Add both secrets before merging a release. If they are missing, the release job
+fails before creating a tag; add them and re-run that Release run within the
+7-day artifact retention. The build number does not change.
+
+### Creating or rotating the certificate
+
+A replacement certificate changes the designated requirement, so every user
+grants Accessibility once more. Rotate only when necessary, and publish a
+release note saying so.
+
+1. Create the certificate with OpenSSL (code-signing usage, 20-year validity):
+
+   ```sh
+   cat > cert.cnf <<'CNF'
+   [req]
+   distinguished_name = dn
+   x509_extensions = ext
+   prompt = no
+   [dn]
+   CN = Focus Island Code Signing
+   [ext]
+   basicConstraints = critical, CA:false
+   keyUsage = critical, digitalSignature
+   extendedKeyUsage = critical, codeSigning
+   CNF
+   openssl req -x509 -newkey rsa:3072 -nodes -keyout key.pem -out cert.pem -days 7300 -config cert.cnf
+   openssl rand -base64 24 | tr -d '\n' > p12-password.txt
+   openssl pkcs12 -export -legacy -inkey key.pem -in cert.pem -out FocusIsland-CodeSigning.p12 \
+     -passout file:p12-password.txt -name "Focus Island Code Signing"
+   rm key.pem
+   ```
+
+   Keep the subject to a CN: an OU can become a Team ID that Sparkle's helpers
+   then require. `-legacy` keeps the `.p12` importable by `security import`.
+2. Write the new SHA-1 (`openssl x509 -in cert.pem -noout -fingerprint -sha1`,
+   colons removed) to `config/code-signing-certificate.txt` and update the
+   expiry date above.
+3. Replace both repository secrets as described in the setup steps.
 
 ## Distribution limits
 

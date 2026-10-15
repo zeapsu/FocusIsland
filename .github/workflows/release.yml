@@ -19,6 +19,7 @@ jobs:
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main'
     runs-on: macos-15
+    timeout-minutes: 30
     concurrency:
       group: focus-island-release
       cancel-in-progress: false
@@ -46,14 +47,18 @@ jobs:
           [[ -n "$CODE_SIGNING_P12" && -n "$CODE_SIGNING_P12_PASSWORD" ]] || { echo 'Code-signing secrets are missing.' >&2; exit 1; }
           keychain="$RUNNER_TEMP/focus-island-signing.keychain-db"
           keychain_password="$(openssl rand -hex 24)"
+          trap 'security delete-keychain "$keychain" 2>/dev/null; rm -f "$RUNNER_TEMP/signing.p12"' EXIT
           security create-keychain -p "$keychain_password" "$keychain"
           security set-keychain-settings -lut 900 "$keychain"
           security unlock-keychain -p "$keychain_password" "$keychain"
-          trap 'security delete-keychain "$keychain" 2>/dev/null; rm -f "$RUNNER_TEMP/signing.p12"' EXIT
           printf '%s' "$CODE_SIGNING_P12" | base64 --decode > "$RUNNER_TEMP/signing.p12"
           security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$CODE_SIGNING_P12_PASSWORD" -T /usr/bin/codesign >/dev/null
           security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" >/dev/null
           CODE_SIGN_KEYCHAIN="$keychain" ./scripts/sign-app.sh "dist/Focus Island.app" "$(tr -d '[:space:]' < config/code-signing-certificate.txt)"
+          # Replacing the certificate makes every user re-grant Accessibility; warn well ahead.
+          codesign -d --extract-certificates="$RUNNER_TEMP/signing-cert" "dist/Focus Island.app"
+          openssl x509 -inform der -in "$RUNNER_TEMP/signing-cert0" -noout -checkend $((365 * 86400)) \
+            || { echo 'The code-signing certificate expires within a year; rotate it (docs/releasing.md).' >&2; exit 1; }
       - name: Verify the signed app bundle
         run: |
           export BUILD_NUMBER=$((1000 + CI_RUN_NUMBER))
