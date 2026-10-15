@@ -138,7 +138,7 @@ struct IslandView: View {
             expect(presentation.wingFold == 1 && presentation.leadingWing == 0 && presentation.trailingWing == 0, "<< click folds both wings into the notch")
             controller.menuBandClicked(at: NSPoint(x: screen.frame.midX - presentation.notchWidth / 2 - 40, y: bandY))
             settle()
-            expect(presentation.wingFold == 1, "choosing an overflow item keeps the wings folded")
+            expect(presentation.wingFold == 1, "clicks off the << position keep the wings folded")
             pointer = headerPoint()
             settle()
             expect(presentation.expanded && presentation.expansion == 1, "hover still expands a folded island")

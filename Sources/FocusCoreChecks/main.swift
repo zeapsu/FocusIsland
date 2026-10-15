@@ -208,13 +208,11 @@ func testIslandGeometry() throws {
     try check(!IslandGeometry.startsHover(at: 700, notchMinX: 762.5, yielding: true) && IslandGeometry.startsHover(at: 800, notchMinX: 762.5, yielding: true), "yielding island starts hover only from the camera housing or trailing wing")
     let notchBand = CGRect(x: 0, y: 1073, width: 1710, height: 34)
     func folded(_ x: CGFloat, _ y: CGFloat = 1090, from state: Bool) -> Bool {
-        IslandGeometry.overflowFolded(after: CGPoint(x: x, y: y), folded: state, menuBand: notchBand, notchMinX: 762.5, notchMaxX: 947.5, trailingWing: 28)
+        IslandGeometry.overflowFolded(after: CGPoint(x: x, y: y), folded: state, menuBand: notchBand, notchMaxX: 947.5, trailingWing: 28)
     }
-    try check(folded(992, from: false), "click on the << position folds the wings")
-    try check(!folded(960, from: false) && !folded(1030, from: false), "clicks on the trailing wing or a later status item do not fold")
-    try check(!folded(992, 500, from: false), "clicks below the menu band do not fold")
-    try check(folded(700, from: true), "choosing an overflow item keeps the wings folded")
-    try check(!folded(992, from: true) && !folded(1300, from: true) && !folded(700, 500, from: true), "any other click restores the wings")
+    try check(folded(992, from: false) && !folded(992, from: true), "clicks on the << position toggle the fold")
+    try check(!folded(960, from: false) && !folded(1030, from: false) && !folded(992, 500, from: false), "clicks off the << position do not fold")
+    try check(folded(700, from: true) && folded(1300, from: true) && folded(992, 500, from: true), "other clicks leave an open overflow folded")
     let fractional = IslandGeometry.frame(display: notchedDisplay, visible: menuVisible, safeAreaTop: 33.5, size: CGSize(width: 428, height: IslandGeometry.notchHeaderHeight(safeAreaTop: 33.5) + 126), attachedToNotch: true)
     try check(fractional.maxY == notchedDisplay.maxY && fractional.minY == fractional.minY.rounded(), "fractional notch inset keeps the shell on whole points at the screen top")
     let attached = IslandGeometry.frame(display: notchedDisplay, visible: menuVisible, safeAreaTop: 33, size: CGSize(width: 241, height: 33), attachedToNotch: true)

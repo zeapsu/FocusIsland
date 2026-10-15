@@ -283,8 +283,7 @@ final class IslandWindowController {
         let band = CGRect(x: screen.frame.minX, y: screen.frame.maxY - presentation.notchHeight,
                           width: screen.frame.width, height: presentation.notchHeight)
         let folded = IslandGeometry.overflowFolded(after: point, folded: overflowFolded, menuBand: band,
-            notchMinX: notchMinX, notchMaxX: notchMinX + presentation.notchWidth,
-            trailingWing: presentation.baseTrailingWing)
+            notchMaxX: notchMinX + presentation.notchWidth, trailingWing: presentation.baseTrailingWing)
         guard folded != overflowFolded else { return }
         overflowFolded = folded
         foldTimer?.cancel()
