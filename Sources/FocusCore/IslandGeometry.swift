@@ -5,6 +5,8 @@ import CoreGraphics
 /// from AppKit makes the display and safe-area behaviour deterministic to test.
 public enum IslandGeometry {
     public static let maximumTopFlare: CGFloat = 14
+    /// The collapsed shell's top corners flare this far past its wings.
+    public static let collapsedTopFlare: CGFloat = 6
 
     /// WindowServer uses top-left coordinates relative to the primary display.
     /// Only pass windows at the system's main-menu window level. Names and
@@ -69,10 +71,13 @@ public enum IslandGeometry {
         return MenuBarReading(control: control.map { $0.minX...$0.maxX }, overflowOpen: open)
     }
 
-    /// The trailing wing stays only while it ends clear of the overflow control.
-    public static func trailingWingFits(control: ClosedRange<CGFloat>?, notchMaxX: CGFloat, trailingWing: CGFloat) -> Bool {
-        guard let control else { return true }
-        return notchMaxX + trailingWing <= control.lowerBound
+    /// The trailing wing narrows so its top flare ends at the overflow control,
+    /// and closes (0) when that leaves less than `minimum` for the state icon.
+    public static func trailingWingWidth(control: ClosedRange<CGFloat>?, notchMaxX: CGFloat,
+                                         preferred: CGFloat = 28, minimum: CGFloat = 16) -> CGFloat {
+        guard let control else { return preferred }
+        let room = control.lowerBound - notchMaxX - collapsedTopFlare
+        return room >= preferred ? preferred : (room >= minimum ? room : 0)
     }
 
     /// The drawing and input system share this exact path in local top-left coordinates.
@@ -91,7 +96,7 @@ public enum IslandGeometry {
         let right = left + width
         let height = headerHeight + bodyHeight
         let radius = min(12 + 10 * progress, height / 2)
-        let topFlare = min(6 + (maximumTopFlare - 6) * progress, height / 4)
+        let topFlare = min(collapsedTopFlare + (maximumTopFlare - collapsedTopFlare) * progress, height / 4)
         let path = CGMutablePath()
         path.move(to: CGPoint(x: left - topFlare, y: 0))
         path.addLine(to: CGPoint(x: right + topFlare, y: 0))

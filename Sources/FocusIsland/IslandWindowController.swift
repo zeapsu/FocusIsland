@@ -13,9 +13,10 @@ import FocusCore
     @Published var baseTrailingWing: CGFloat = 28
     /// 1 while the macOS 27 menu-bar overflow is open: the wings fold into the notch.
     @Published var wingFold: CGFloat = 0
-    /// True when Accessibility shows the `<<` control under the trailing wing;
-    /// the state icon then moves next to the clock.
-    @Published var trailingYields = false
+    /// The trailing wing's width beside the `<<` control, read through Accessibility.
+    /// At 0 the state icon moves next to the clock.
+    @Published var fittedTrailingWing: CGFloat = 28
+    var trailingYields: Bool { fittedTrailingWing == 0 }
     var leadingWing: CGFloat { baseLeadingWing * (1 - wingFold) }
     var trailingWing: CGFloat { baseTrailingWing * (1 - wingFold) }
     @Published var canvasWidth: CGFloat = 340
@@ -302,7 +303,7 @@ final class IslandWindowController {
         applyingMenuBarFrames = true
         defer { applyingMenuBarFrames = false }
         guard presentation.attachedToNotch, let screen = selectedScreen, let frames else {
-            if presentation.trailingYields { presentation.trailingYields = false; reposition() }
+            fitTrailingWing(28)
             setFold(false)
             return
         }
@@ -316,13 +317,17 @@ final class IslandWindowController {
         // Without a << control on this display there is no overflow to follow,
         // or the macOS layout changed from what was measured; stay unfolded.
         guard reading.control != nil else {
-            if presentation.trailingYields { presentation.trailingYields = false; reposition() }
+            fitTrailingWing(28)
             setFold(false)
             return
         }
-        let yields = !IslandGeometry.trailingWingFits(control: reading.control, notchMaxX: notchMaxX, trailingWing: 28)
-        if yields != presentation.trailingYields { presentation.trailingYields = yields; reposition() }
+        fitTrailingWing(IslandGeometry.trailingWingWidth(control: reading.control, notchMaxX: notchMaxX))
         setFold(reading.overflowOpen)
+    }
+    private func fitTrailingWing(_ width: CGFloat) {
+        guard width != presentation.fittedTrailingWing else { return }
+        presentation.fittedTrailingWing = width
+        reposition()
     }
     private func setFold(_ folded: Bool) {
         guard folded != overflowFolded else { return }
@@ -386,11 +391,11 @@ final class IslandWindowController {
         notchMinX = screen.frame.midX - notchWidth / 2
         presentation.notchHeight = IslandGeometry.notchHeaderHeight(safeAreaTop: screen.safeAreaInsets.top)
         let expandedWidth = max(400, notchWidth + 200)
-        // When the `<<` control would sit under the trailing wing, the state icon
-        // joins the clock on the leading side and the trailing wing closes.
+        // The trailing wing narrows to clear the `<<` control; when it closes,
+        // the state icon joins the clock on the leading side.
         let yields = presentation.trailingYields
         presentation.baseLeadingWing = displayedState == .idle ? 28 : (yields ? 94 : 72)
-        presentation.baseTrailingWing = yields ? 0 : 28
+        presentation.baseTrailingWing = presentation.fittedTrailingWing
         presentation.expandedWidth = expandedWidth
         presentation.canvasWidth = expandedWidth + (presentation.attachedToNotch ? 2 * IslandGeometry.maximumTopFlare : 0)
         presentation.canvasHeight = presentation.headerHeight + 126

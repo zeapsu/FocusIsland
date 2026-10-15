@@ -136,6 +136,9 @@ struct IslandView: View {
             let axY = (NSScreen.screens.first?.frame.maxY ?? screen.frame.maxY) - screen.frame.maxY
             let control = CGRect(x: notchMaxX + 21, y: axY + 1, width: 17, height: 31)
             let leftOfNotch = CGRect(x: screen.frame.midX - presentation.notchWidth / 2 - 50, y: axY + 5, width: 24, height: 24)
+            controller.applyMenuBarFrames((controls: [control.offsetBy(dx: 6, dy: 0)], items: []))
+            settle()
+            expect(!presentation.trailingYields && presentation.trailingWing == 21, "<< just past the trailing wing narrows it")
             controller.applyMenuBarFrames((controls: [control], items: []))
             settle()
             expect(presentation.trailingYields && presentation.trailingWing == 0 && presentation.wingFold == 0, "<< under the trailing wing closes it")

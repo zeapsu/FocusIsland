@@ -88,7 +88,7 @@ struct IslandView: View {
             let leading = island.leadingWing + (expandedWing - island.leadingWing) * island.expansion
             let trailing = island.trailingWing + (expandedWing - island.trailingWing) * island.expansion
             HStack(spacing: 0) {
-                HStack(spacing: 8) {
+                HStack(spacing: 0) {
                     if model.snapshot.state == .hardStopReached {
                         Text("Move").font(.system(size: 12, weight: .semibold)).foregroundStyle(palette.warning)
                     } else if model.clockText.isEmpty {
@@ -97,9 +97,12 @@ struct IslandView: View {
                         Text(model.clockText).font(.system(size: 12, weight: .semibold, design: .monospaced)).monospacedDigit()
                     }
                     // The trailing wing closed to clear the `<<` control; keep its icon visible here.
-                    if island.trailingYields && model.snapshot.state != .idle && island.expansion < 1 {
+                    // It narrows with the expansion so the text beside it slides instead of jumping.
+                    if island.trailingYields && model.snapshot.state != .idle {
                         Image(systemName: model.icon).font(.system(size: 11, weight: .medium))
                             .foregroundStyle(model.snapshot.state == .hardStopReached ? palette.warning : palette.accent)
+                            .fixedSize().padding(.leading, 8)
+                            .frame(width: 22 * (1 - island.expansion), alignment: .leading).clipped()
                             .opacity(Double(1 - island.expansion))
                     }
                 }.frame(width: leading)
