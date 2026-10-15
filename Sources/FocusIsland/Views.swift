@@ -276,9 +276,14 @@ struct MenuBarAccessRow: View {
         let palette = Palette.system
         VStack(alignment: .leading, spacing: 10) {
             Text("Menu bar icons beside the notch").font(.headline)
+            // Re-read every second, so this reflects changes made in System Settings.
+            Label(menuBar.isTrusted ? "Accessibility access is on" : "Accessibility access is off",
+                  systemImage: menuBar.isTrusted ? "checkmark.circle.fill" : "xmark.circle")
+                .foregroundStyle(menuBar.isTrusted ? Color.green : palette.secondaryText)
+                .accessibilityIdentifier("menuBarAccessState")
             Text(menuBar.isTrusted
-                 ? "Allowed. The island folds away while hidden menu bar icons are shown and moves its right icon when it would cover the << button."
-                 : "With Accessibility access, Focus Island reads where menu bar icons sit, so it can fold away while hidden icons are shown and avoid covering the << button. Without it, the island guesses from your clicks.")
+                 ? "The island folds away while hidden menu bar icons are shown and moves its right icon when it would cover the << button."
+                 : "With Accessibility access, Focus Island reads where menu bar icons sit, so it can fold away while hidden icons are shown and avoid covering the << button. Without it, the island stays as it is.")
                 .font(.callout).foregroundStyle(palette.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("menuBarAccessStatus")
