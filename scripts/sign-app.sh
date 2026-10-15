@@ -2,7 +2,8 @@
 # Sign an app bundle inside-out: Sparkle's nested helpers, the framework, the
 # executable, then the bundle. Usage: sign-app.sh <app> [identity]
 # The identity defaults to ad hoc ("-"). Set CODE_SIGN_KEYCHAIN to sign from a
-# keychain that is not in the search list, as the release workflow does.
+# specific keychain, as the release workflow does; on macOS 15 that keychain
+# must also be on the search list.
 set -euo pipefail
 
 app_path="$1"
