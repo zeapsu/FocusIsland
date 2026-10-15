@@ -60,7 +60,7 @@ On a notched Mac, the compact island occupies the menu-bar band around the physi
 
 On physical-notch displays, the island remains available in native full-screen apps. On rectangular displays, it disappears when the system menu bar hides, including in full screen, and returns when the bar becomes visible. Expanded controls stay usable while the pointer is over their body and disappear after leaving if the bar has hidden. Hover never takes keyboard focus. One island follows the cursor display when the menu opens. The external-display version uses public window bounds to observe the actual menu-bar strip and stays hidden if that strip cannot be matched; live multi-display arrangements remain under active stabilization.
 
-On macOS 27 and later, the collapsed notch island sits just under the system menu-bar window, so status items revealed by the `<<` overflow control draw over its left wing and stay clickable. Hover from the camera area or the right wing raises and expands it as before.
+On macOS 27 and later, the collapsed notch island sits just under the system menu-bar window, so status items revealed by the `<<` overflow control draw over its left wing and stay clickable. Hover from the camera area or the right wing raises and expands it as before. Clicking `<<` folds the island's wings into the notch so the overflow icons sit on a clear menu bar; clicking `>>` brings them back.
 
 ## Updates and privacy
 
