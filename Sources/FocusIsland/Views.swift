@@ -116,7 +116,9 @@ struct IslandView: View {
                     }
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(model.snapshot.state == .hardStopReached ? palette.warning : palette.accent)
-                    .frame(width: trailing, height: island.headerHeight)
+                    // A closed or narrow wing would otherwise draw the icon past its edge.
+                    .opacity(Double(min(1, trailing / 16)))
+                    .frame(width: trailing, height: island.headerHeight).clipped()
                     .contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityLabel("Open timer menu").accessibilityIdentifier("islandMenu")
             }.foregroundStyle(palette.text)

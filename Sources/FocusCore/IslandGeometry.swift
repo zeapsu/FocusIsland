@@ -7,6 +7,8 @@ public enum IslandGeometry {
     public static let maximumTopFlare: CGFloat = 14
     /// The collapsed shell's top corners flare this far past its wings.
     public static let collapsedTopFlare: CGFloat = 6
+    /// A status icon's click highlight extends about this far past its Accessibility frame.
+    public static let statusItemPadding: CGFloat = 7
 
     /// WindowServer uses top-left coordinates relative to the primary display.
     /// Only pass windows at the system's main-menu window level. Names and
@@ -53,9 +55,13 @@ public enum IslandGeometry {
         public var control: ClosedRange<CGFloat>?
         /// Hidden status items are drawn left of the notch while the overflow is open.
         public var overflowOpen: Bool
-        public init(control: ClosedRange<CGFloat>?, overflowOpen: Bool) {
+        /// What the trailing wing must end before: the `<<` control, or without
+        /// it the first status icon right of the notch, padded to its highlight.
+        public var trailingLimit: ClosedRange<CGFloat>?
+        public init(control: ClosedRange<CGFloat>?, overflowOpen: Bool, trailingLimit: ClosedRange<CGFloat>? = nil) {
             self.control = control
             self.overflowOpen = overflowOpen
+            self.trailingLimit = trailingLimit ?? control
         }
     }
 
@@ -67,16 +73,22 @@ public enum IslandGeometry {
                                       notchMinX: CGFloat, notchMaxX: CGFloat) -> MenuBarReading {
         func inBand(_ r: CGRect) -> Bool { r.midY >= band.minY && r.midY <= band.maxY && r.minX >= band.minX && r.maxX <= band.maxX }
         let control = controls.first { inBand($0) && $0.minX >= notchMaxX - 4 }
-        let open = items.contains { $0.width > 0 && $0.height > 0 && inBand($0) && $0.maxX <= notchMinX }
-        return MenuBarReading(control: control.map { $0.minX...$0.maxX }, overflowOpen: open)
+        let visible = items.filter { $0.width > 0 && $0.height > 0 && inBand($0) }
+        let open = visible.contains { $0.maxX <= notchMinX }
+        // While << shows, hidden icons stack behind it right of the notch, so
+        // only without it are the icons there really visible.
+        let firstRight = visible.filter { $0.minX >= notchMaxX - 4 }.min { $0.minX < $1.minX }
+        let limit = control.map { $0.minX...$0.maxX } ?? firstRight.map { ($0.minX - statusItemPadding)...$0.maxX }
+        return MenuBarReading(control: control.map { $0.minX...$0.maxX }, overflowOpen: open, trailingLimit: limit)
     }
 
-    /// The trailing wing narrows so its top flare ends at the overflow control,
-    /// and closes (0) when that leaves less than `minimum` for the state icon.
-    public static func trailingWingWidth(control: ClosedRange<CGFloat>?, notchMaxX: CGFloat,
+    /// The trailing wing narrows so its top flare ends at `limit` (see
+    /// `MenuBarReading.trailingLimit`), and closes (0) when that leaves less
+    /// than `minimum` for the state icon.
+    public static func trailingWingWidth(limit: ClosedRange<CGFloat>?, notchMaxX: CGFloat,
                                          preferred: CGFloat = 28, minimum: CGFloat = 16) -> CGFloat {
-        guard let control else { return preferred }
-        let room = control.lowerBound - notchMaxX - collapsedTopFlare
+        guard let limit else { return preferred }
+        let room = limit.lowerBound - notchMaxX - collapsedTopFlare
         return room >= preferred ? preferred : (room >= minimum ? room : 0)
     }
 

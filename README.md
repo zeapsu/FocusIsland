@@ -19,7 +19,7 @@ A small, native macOS focus timer that lives in the menu bar and grows out of th
 - Uses one shared session model for the menu bar, notch island, Settings, and notifications.
 - Expands from the notch into a small control surface on hover. The camera cutout stays clear, and the shell folds back after the pointer leaves.
 - Keeps the notch black; the menu and Settings follow macOS light or dark appearance.
-- On macOS 27, gets out of the way of the menu bar: hidden status icons revealed by `<<` draw over the island, and with optional Accessibility access the island folds into the notch while they show and narrows its right wing to fit beside `<<`, moving the icon next to the clock only when there is no room.
+- On macOS 27, gets out of the way of the menu bar: hidden status icons revealed by `<<` draw over the island, and with optional Accessibility access the island folds into the notch while they show and narrows its right wing to fit beside `<<` or the first menu bar icon, moving the icon next to the clock only when there is no room.
 - Uses native notifications when allowed; declining permission never prevents the timer from working.
 
 <p align="center"><img src="docs/assets/fold.gif" alt="On macOS 27, clicking the menu bar's << button folds the island into the notch while hidden icons show, and clicking >> brings it back" width="640"></p>

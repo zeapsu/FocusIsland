@@ -157,6 +157,9 @@ struct IslandView: View {
             controller.applyMenuBarFrames((controls: [], items: [leftOfNotch]))
             settle()
             expect(presentation.wingFold == 0, "a reading without << stays unfolded")
+            controller.applyMenuBarFrames((controls: [], items: [CGRect(x: notchMaxX + 27.5, y: axY + 5, width: 24, height: 24)]))
+            settle()
+            expect(presentation.trailingYields && presentation.wingFold == 0, "without <<, an icon beside the notch closes the trailing wing")
             controller.applyMenuBarFrames(nil)
             settle()
         }

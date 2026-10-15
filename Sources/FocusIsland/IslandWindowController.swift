@@ -13,7 +13,7 @@ import FocusCore
     @Published var baseTrailingWing: CGFloat = 28
     /// 1 while the macOS 27 menu-bar overflow is open: the wings fold into the notch.
     @Published var wingFold: CGFloat = 0
-    /// The trailing wing's width beside the `<<` control, read through Accessibility.
+    /// The trailing wing's width beside `<<` or the first status icon, read through Accessibility.
     /// At 0 the state icon moves next to the clock.
     @Published var fittedTrailingWing: CGFloat = 28
     var trailingYields: Bool { fittedTrailingWing == 0 }
@@ -314,15 +314,10 @@ final class IslandWindowController {
         let notchMaxX = notchMinX + presentation.notchWidth
         let reading = IslandGeometry.menuBarReading(controls: frames.controls, items: frames.items, band: band,
                                                     notchMinX: notchMinX, notchMaxX: notchMaxX)
+        fitTrailingWing(IslandGeometry.trailingWingWidth(limit: reading.trailingLimit, notchMaxX: notchMaxX))
         // Without a << control on this display there is no overflow to follow,
         // or the macOS layout changed from what was measured; stay unfolded.
-        guard reading.control != nil else {
-            fitTrailingWing(28)
-            setFold(false)
-            return
-        }
-        fitTrailingWing(IslandGeometry.trailingWingWidth(control: reading.control, notchMaxX: notchMaxX))
-        setFold(reading.overflowOpen)
+        setFold(reading.control != nil && reading.overflowOpen)
     }
     private func fitTrailingWing(_ width: CGFloat) {
         guard width != presentation.fittedTrailingWing else { return }
@@ -391,7 +386,7 @@ final class IslandWindowController {
         notchMinX = screen.frame.midX - notchWidth / 2
         presentation.notchHeight = IslandGeometry.notchHeaderHeight(safeAreaTop: screen.safeAreaInsets.top)
         let expandedWidth = max(400, notchWidth + 200)
-        // The trailing wing narrows to clear the `<<` control; when it closes,
+        // The trailing wing narrows to clear `<<` or the first status icon; when it closes,
         // the state icon joins the clock on the leading side.
         let yields = presentation.trailingYields
         presentation.baseLeadingWing = displayedState == .idle ? 28 : (yields ? 94 : 72)
