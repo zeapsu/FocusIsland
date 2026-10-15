@@ -53,7 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             restoredFold: store.loadOverflowFold(bootTime: bootTime),
             saveFold: { store.saveOverflowFold($0, bootTime: bootTime) },
             menuBarFrames: menuBar?.$frames.map { $0 }.eraseToAnyPublisher(),
-            refreshMenuBar: { [weak menuBar] in menuBar?.refresh() })
+            refreshMenuBar: { [weak menuBar] in menuBar?.refresh() },
+            setMenuBarActive: { [weak menuBar] in menuBar?.isActive = $0 })
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem = item
         item.button?.target = self

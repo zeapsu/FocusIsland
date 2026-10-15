@@ -293,7 +293,8 @@ public struct LocalStore {
     /// boot time it was observed in and only restored within that boot.
     public func loadOverflowFold(bootTime: Date) -> Bool {
         guard let stored = defaults.object(forKey: overflowFoldKey) as? Double else { return false }
-        return abs(stored - bootTime.timeIntervalSince1970) < 1
+        // kern.boottime shifts when the wall clock is corrected after sleep.
+        return abs(stored - bootTime.timeIntervalSince1970) < 10
     }
 
     public func saveOverflowFold(_ folded: Bool, bootTime: Date) {

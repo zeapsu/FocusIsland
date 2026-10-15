@@ -163,6 +163,9 @@ struct IslandView: View {
             controller.applyMenuBarFrames((controls: [control.offsetBy(dx: 30, dy: 0)], items: []))
             settle()
             expect(!presentation.trailingYields && presentation.trailingWing == 28 && presentation.wingFold == 0, "closed overflow with << clear restores both wings")
+            controller.applyMenuBarFrames((controls: [], items: [leftOfNotch]))
+            settle()
+            expect(presentation.wingFold == 0, "a reading without << leaves the click guess in charge")
             controller.applyMenuBarFrames(nil)
             settle()
         }

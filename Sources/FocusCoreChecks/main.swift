@@ -219,6 +219,7 @@ func testIslandGeometry() throws {
     foldStore.saveOverflowFold(true, bootTime: boot)
     try check(foldStore.loadOverflowFold(bootTime: boot), "fold survives a relaunch within the same boot")
     try check(!foldStore.loadOverflowFold(bootTime: boot.addingTimeInterval(3_600)), "fold resets after a restart")
+    try check(foldStore.loadOverflowFold(bootTime: boot.addingTimeInterval(3)), "a small boot-time correction keeps the fold")
     foldStore.saveOverflowFold(false, bootTime: boot)
     try check(!foldStore.loadOverflowFold(bootTime: boot), "unfolding clears the stored fold")
     // Frames read through Accessibility on macOS 27.0.1 (MacBook Air, notch 762.5–947.5).
@@ -231,6 +232,8 @@ func testIslandGeometry() throws {
     try check(opened.overflowOpen, "open overflow: a hidden icon left of the notch")
     let otherDisplay = IslandGeometry.menuBarReading(controls: [CGRect(x: 2500, y: -900, width: 17, height: 31)], items: [CGRect(x: 2000, y: -895, width: 24, height: 24)], band: axBand, notchMinX: 762.5, notchMaxX: 947.5)
     try check(otherDisplay == .init(control: nil, overflowOpen: false), "another display's menu bar is ignored")
+    let zeroFrame = IslandGeometry.menuBarReading(controls: [chevron], items: stacked + [.zero], band: axBand, notchMinX: 762.5, notchMaxX: 947.5)
+    try check(!zeroFrame.overflowOpen, "an unreadable zero-size icon does not count as open")
     try check(!IslandGeometry.trailingWingFits(control: 969...986, notchMaxX: 947.5, trailingWing: 28), "<< under the trailing wing makes it yield")
     try check(IslandGeometry.trailingWingFits(control: 999...1016, notchMaxX: 947.5, trailingWing: 28) && IslandGeometry.trailingWingFits(control: nil, notchMaxX: 947.5, trailingWing: 28), "trailing wing stays when << is clear or absent")
     let fractional = IslandGeometry.frame(display: notchedDisplay, visible: menuVisible, safeAreaTop: 33.5, size: CGSize(width: 428, height: IslandGeometry.notchHeaderHeight(safeAreaTop: 33.5) + 126), attachedToNotch: true)

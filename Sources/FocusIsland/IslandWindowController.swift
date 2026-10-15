@@ -94,6 +94,9 @@ final class IslandWindowController {
     private let menuBarFrame: @MainActor (NSScreen) -> CGRect?
     private let saveFold: (Bool) -> Void
     private let refreshMenuBar: () -> Void
+    private let setMenuBarActive: (Bool) -> Void
+    private var lastMenuBarFrames: (controls: [CGRect], items: [CGRect])?
+    private var applyingMenuBarFrames = false
     /// Set once Accessibility readings arrive; the fold then follows them instead of clicks.
     private var menuBarReading: IslandGeometry.MenuBarReading?
 
@@ -102,10 +105,11 @@ final class IslandWindowController {
          menuBarFrame: @escaping @MainActor (NSScreen) -> CGRect? = SystemMenuBar.frame,
          restoredFold: Bool = false, saveFold: @escaping (Bool) -> Void = { _ in },
          menuBarFrames: AnyPublisher<(controls: [CGRect], items: [CGRect])?, Never>? = nil,
-         refreshMenuBar: @escaping () -> Void = {}) {
+         refreshMenuBar: @escaping () -> Void = {}, setMenuBarActive: @escaping (Bool) -> Void = { _ in }) {
         self.model = model
         self.saveFold = saveFold
         self.refreshMenuBar = refreshMenuBar
+        self.setMenuBarActive = setMenuBarActive
         self.pointerLocation = pointerLocation
         self.menuBarFrame = menuBarFrame
         panel = PassivePanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -150,8 +154,11 @@ final class IslandWindowController {
         if yieldsToOverflow, let monitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown, handler: { [weak self] _ in
             guard let self else { return }
             self.menuBandClicked(at: self.pointerLocation())
-            // Re-read the menu bar soon after a click instead of waiting for the next tick.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in self?.refreshMenuBar() }
+            // Re-read the menu bar soon after a click instead of waiting for the next
+            // tick, and again once the icons have finished sliding.
+            for delay in [0.15, 0.4] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.refreshMenuBar() }
+            }
         }) { pointerMonitors.append(monitor) }
         if yieldsToOverflow, let menuBarFrames {
             menuBarFrames.receive(on: DispatchQueue.main).sink { [weak self] frames in
@@ -302,6 +309,9 @@ final class IslandWindowController {
         expand = nil
     }
     func applyMenuBarFrames(_ frames: (controls: [CGRect], items: [CGRect])?) {
+        lastMenuBarFrames = frames
+        applyingMenuBarFrames = true
+        defer { applyingMenuBarFrames = false }
         guard presentation.attachedToNotch, let screen = selectedScreen, let frames else {
             menuBarReading = nil
             if presentation.trailingYields { presentation.trailingYields = false; reposition() }
@@ -314,6 +324,13 @@ final class IslandWindowController {
         let notchMaxX = notchMinX + presentation.notchWidth
         let reading = IslandGeometry.menuBarReading(controls: frames.controls, items: frames.items, band: band,
                                                     notchMinX: notchMinX, notchMaxX: notchMaxX)
+        // Without a << control on this display the tree is not what was measured
+        // (no overflow, or a changed macOS layout), so keep the click guess.
+        guard reading.control != nil else {
+            menuBarReading = nil
+            if presentation.trailingYields { presentation.trailingYields = false; reposition() }
+            return
+        }
         menuBarReading = reading
         let yields = !IslandGeometry.trailingWingFits(control: reading.control, notchMaxX: notchMaxX, trailingWing: 28)
         if yields != presentation.trailingYields { presentation.trailingYields = yields; reposition() }
@@ -405,5 +422,8 @@ final class IslandWindowController {
         let size = NSSize(width: presentation.canvasWidth, height: presentation.canvasHeight)
         let frame = IslandGeometry.frame(display: screen.frame, visible: screen.visibleFrame, safeAreaTop: screen.safeAreaInsets.top, size: size, attachedToNotch: presentation.attachedToNotch, menuBarHeight: presentation.menuBarHeight)
         if panel.frame != frame { panel.setFrame(frame, display: true) }
+        // A display change re-interprets the last reading; the menu bar itself may not change.
+        setMenuBarActive(presentation.attachedToNotch)
+        if !applyingMenuBarFrames, let lastMenuBarFrames { applyMenuBarFrames(lastMenuBarFrames) }
     }
 }

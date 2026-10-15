@@ -65,7 +65,7 @@ public enum IslandGeometry {
                                       notchMinX: CGFloat, notchMaxX: CGFloat) -> MenuBarReading {
         func inBand(_ r: CGRect) -> Bool { r.midY >= band.minY && r.midY <= band.maxY && r.minX >= band.minX && r.maxX <= band.maxX }
         let control = controls.first { inBand($0) && $0.minX >= notchMaxX - 4 }
-        let open = items.contains { inBand($0) && $0.maxX <= notchMinX }
+        let open = items.contains { $0.width > 0 && $0.height > 0 && inBand($0) && $0.maxX <= notchMinX }
         return MenuBarReading(control: control.map { $0.minX...$0.maxX }, overflowOpen: open)
     }
 
