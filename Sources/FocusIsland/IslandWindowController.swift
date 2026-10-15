@@ -9,8 +9,12 @@ import FocusCore
     @Published var attachedToNotch = false
     @Published var notchWidth: CGFloat = 0
     @Published var notchHeight: CGFloat = 0
-    @Published var leadingWing: CGFloat = 28
-    @Published var trailingWing: CGFloat = 28
+    @Published var baseLeadingWing: CGFloat = 28
+    @Published var baseTrailingWing: CGFloat = 28
+    /// 1 while the macOS 27 menu-bar overflow is open: the wings fold into the notch.
+    @Published var wingFold: CGFloat = 0
+    var leadingWing: CGFloat { baseLeadingWing * (1 - wingFold) }
+    var trailingWing: CGFloat { baseTrailingWing * (1 - wingFold) }
     @Published var canvasWidth: CGFloat = 340
     @Published var canvasHeight: CGFloat = 180
     @Published var expandedWidth: CGFloat = 400
@@ -75,6 +79,8 @@ final class IslandWindowController {
     private var hovering = false
     private let yieldsToOverflow = IslandGeometry.yieldsToMenuBarOverflow(macOSMajor: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
     private var notchMinX: CGFloat = 0
+    private var overflowFolded = false
+    private var foldTimer: AnyCancellable?
     private var menuOpen = false
     private var displayedState: SessionState = .idle
     private var pointerTimer: AnyCancellable?
@@ -123,6 +129,12 @@ final class IslandWindowController {
         }
         if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged], handler: { [weak self] _ in self?.updatePointer() }) { pointerMonitors.append(monitor) }
         if let monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged], handler: { [weak self] event in self?.updatePointer(); return event }) { pointerMonitors.append(monitor) }
+        // Global mouse monitors need no Accessibility permission. They only see
+        // clicks delivered to other apps, such as the system menu bar.
+        if yieldsToOverflow, let monitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown, handler: { [weak self] _ in
+            guard let self else { return }
+            self.menuBandClicked(at: self.pointerLocation())
+        }) { pointerMonitors.append(monitor) }
         model.$snapshot.map(\.state).removeDuplicates().sink { [weak self] state in
             guard let self else { return }
             self.displayedState = state
@@ -266,6 +278,35 @@ final class IslandWindowController {
         collapse = nil
         expand = nil
     }
+    func menuBandClicked(at point: NSPoint) {
+        guard yieldsToOverflow, presentation.attachedToNotch, let screen = selectedScreen else { return }
+        let band = CGRect(x: screen.frame.minX, y: screen.frame.maxY - presentation.notchHeight,
+                          width: screen.frame.width, height: presentation.notchHeight)
+        let folded = IslandGeometry.overflowFolded(after: point, folded: overflowFolded, menuBand: band,
+            notchMaxX: notchMinX + presentation.notchWidth, trailingWing: presentation.baseTrailingWing)
+        guard folded != overflowFolded else { return }
+        overflowFolded = folded
+        foldTimer?.cancel()
+        foldTimer = nil
+        let target: CGFloat = folded ? 1 : 0
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || suppressed {
+            presentation.wingFold = target
+            return
+        }
+        let start = presentation.wingFold
+        let began = ProcessInfo.processInfo.systemUptime
+        let duration = 0.22 * max(0.25, Double(abs(target - start)))
+        foldTimer = Timer.publish(every: 1.0 / 60, on: .main, in: .common).autoconnect().sink { [weak self] _ in
+            guard let self else { return }
+            let elapsed = min(1, max(0, (ProcessInfo.processInfo.systemUptime - began) / duration))
+            let eased = elapsed < 0.5 ? 4 * pow(elapsed, 3) : 1 - pow(-2 * elapsed + 2, 3) / 2
+            self.presentation.wingFold = start + (target - start) * eased
+            if elapsed >= 1 {
+                self.foldTimer?.cancel()
+                self.foldTimer = nil
+            }
+        }
+    }
     private func setExpanded(_ expanded: Bool) {
         guard presentation.expanded != expanded else { return }
         presentation.expanded = expanded
@@ -304,8 +345,8 @@ final class IslandWindowController {
         notchMinX = screen.frame.midX - notchWidth / 2
         presentation.notchHeight = IslandGeometry.notchHeaderHeight(safeAreaTop: screen.safeAreaInsets.top)
         let expandedWidth = max(400, notchWidth + 200)
-        presentation.leadingWing = displayedState == .idle ? 28 : 72
-        presentation.trailingWing = 28
+        presentation.baseLeadingWing = displayedState == .idle ? 28 : 72
+        presentation.baseTrailingWing = 28
         presentation.expandedWidth = expandedWidth
         presentation.canvasWidth = expandedWidth + (presentation.attachedToNotch ? 2 * IslandGeometry.maximumTopFlare : 0)
         presentation.canvasHeight = presentation.headerHeight + 126

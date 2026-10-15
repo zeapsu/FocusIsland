@@ -131,6 +131,22 @@ struct IslandView: View {
             pointer = outside
             settle()
             expect(collapsed() && controller.panel.level.rawValue == NSWindow.Level.mainMenu.rawValue - 1, "collapse returns the island under the menu bar")
+            let notchMaxX = screen.frame.midX + presentation.notchWidth / 2
+            let bandY = screen.frame.maxY - presentation.headerHeight / 2
+            controller.menuBandClicked(at: NSPoint(x: notchMaxX + presentation.baseTrailingWing + 16, y: bandY))
+            settle()
+            expect(presentation.wingFold == 1 && presentation.leadingWing == 0 && presentation.trailingWing == 0, "<< click folds both wings into the notch")
+            controller.menuBandClicked(at: NSPoint(x: screen.frame.midX - presentation.notchWidth / 2 - 40, y: bandY))
+            settle()
+            expect(presentation.wingFold == 1, "clicks off the << position keep the wings folded")
+            pointer = headerPoint()
+            settle()
+            expect(presentation.expanded && presentation.expansion == 1, "hover still expands a folded island")
+            pointer = outside
+            settle()
+            controller.menuBandClicked(at: NSPoint(x: notchMaxX + presentation.baseTrailingWing + 16, y: bandY))
+            settle()
+            expect(presentation.wingFold == 0 && presentation.leadingWing == presentation.baseLeadingWing, "second << click restores the wings")
         }
         expect(app.keyWindow === originalKeyWindow, "passive controller updates preserve keyboard focus")
         if !presentation.attachedToNotch {

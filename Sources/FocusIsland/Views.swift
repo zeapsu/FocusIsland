@@ -111,6 +111,9 @@ struct IslandView: View {
                     .contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityLabel("Open timer menu").accessibilityIdentifier("islandMenu")
             }.foregroundStyle(palette.text)
+            // Folding wings carry their content into the notch rather than clipping it.
+            // Hover still reveals the header over a folded shell.
+            .opacity(Double(1 - island.wingFold * (1 - island.expansion)))
         } else {
             HStack(spacing: 8) {
                 Image(systemName: model.icon).foregroundStyle(model.snapshot.state == .hardStopReached ? palette.warning : palette.accent)
