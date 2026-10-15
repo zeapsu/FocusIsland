@@ -25,6 +25,13 @@ fi
 [[ "$(value SUSendProfileInfo)" == "false" ]] || { echo "Profiling must remain disabled." >&2; exit 1; }
 [[ "$(value SUPublicEDKey)" == "$(tr -d '[:space:]' < "$root/config/sparkle-public-key.txt")" ]] || { echo "Bundle public key differs from tracked public key." >&2; exit 1; }
 codesign --verify --deep --strict "$app_path"
+# Releases must carry the project certificate: macOS keys Accessibility grants
+# to it, so an ad hoc or different signature would revoke them on update.
+if [[ "${EXPECT_PROJECT_SIGNATURE:-0}" == "1" ]]; then
+  expected="$(tr -d '[:space:]' < "$root/config/code-signing-certificate.txt" | tr '[:upper:]' '[:lower:]')"
+  requirement="$(codesign -d -r- "$app_path" 2>&1)"
+  [[ "$requirement" == *"identifier \"local.focusisland.app\" and certificate leaf = H\"$expected\""* ]] || { echo "App is not signed with the project certificate." >&2; exit 1; }
+fi
 otool -L "$app_path/Contents/MacOS/FocusIsland" | grep -q 'Sparkle.framework' || { echo "Executable is not linked to Sparkle.framework." >&2; exit 1; }
 otool -l "$app_path/Contents/MacOS/FocusIsland" | grep -A2 'LC_RPATH' | grep -q '@executable_path/../Frameworks' || { echo "Executable has no embedded-framework rpath." >&2; exit 1; }
 if [[ "${EXPECT_UNIVERSAL:-0}" == "1" ]]; then

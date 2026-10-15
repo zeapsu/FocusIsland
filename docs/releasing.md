@@ -55,10 +55,41 @@ SHA-256, creates the archive with `ditto`, and calls Sparkle's
 and is streamed through standard input. Output is
 `dist/release/Focus-Island-<version>-<build>.zip` and `dist/release/appcast.xml`.
 
+## Code signing
+
+Releases are signed with the project's self-signed certificate, "Focus Island
+Code Signing". Its SHA-1 fingerprint is tracked in
+`config/code-signing-certificate.txt`. macOS keys the Accessibility permission
+to the app's designated requirement, which for this certificate is
+`identifier "local.focusisland.app" and certificate leaf = H"<fingerprint>"`.
+That requirement stays the same across builds, so the permission survives
+updates. Ad hoc signatures change with every build and would revoke it.
+
+CI builds stay ad hoc. The release job restores the tested bundle, imports the
+certificate into a temporary keychain, re-signs the bundle with
+`scripts/sign-app.sh`, and deletes the keychain. `verify-app.sh` with
+`EXPECT_PROJECT_SIGNATURE=1` fails any release that does not carry the
+certificate.
+
+One-time setup, in addition to the Sparkle key:
+
+1. Keep `FocusIsland-CodeSigning.p12` and its password somewhere durable, such
+   as a password manager. Losing them forces one more Accessibility re-grant
+   for every user when a new certificate replaces this one.
+2. Add two repository Actions secrets: `CODE_SIGNING_P12` (the `.p12` file,
+   base64-encoded, for example `base64 -i FocusIsland-CodeSigning.p12 | pbcopy`)
+   and `CODE_SIGNING_P12_PASSWORD`.
+3. Optional for local QA builds: import the `.p12` into your login keychain and
+   build with `CODE_SIGN_IDENTITY="$(cat config/code-signing-certificate.txt)"`
+   so local copies keep their Accessibility grant too.
+
+Sparkle accepts an update when either its EdDSA signature or its Apple code
+signature matches the installed app, so the one-time move from ad hoc to this
+certificate is authorized by the unchanged EdDSA key.
+
 ## Distribution limits
 
-Current builds are ad-hoc signed because this project does not have a Developer
-ID certificate or notarization. Sparkle's Ed25519 signatures protect update
-integrity, but Gatekeeper may warn for a downloaded app. A Developer ID-signed,
-notarized release is future work; these artifacts must not be described as
-notarized.
+The certificate is self-signed, not a Developer ID, and releases are not
+notarized. Gatekeeper still treats the app as coming from an unidentified
+developer on first launch. Sparkle's Ed25519 signatures protect update
+integrity. These artifacts must not be described as notarized.

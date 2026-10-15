@@ -290,7 +290,7 @@ struct MenuBarAccessRow: View {
             if !menuBar.isTrusted {
                 Button("Allow Accessibility Access…", action: menuBar.requestAccess)
                     .accessibilityIdentifier("menuBarAccess")
-                Text("Focus Island only reads where menu bar icons sit. After an update, turn Focus Island off and on again in Accessibility settings; this goes away once releases are signed with a Developer ID.")
+                Text("Focus Island only reads where menu bar icons sit. If access stays off after you allow it, remove Focus Island from the Accessibility list and add it again.")
                     .font(.caption).foregroundStyle(palette.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }

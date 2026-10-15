@@ -89,16 +89,10 @@ plist="$stage_app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c 'Add :SUVerifyUpdateBeforeExtraction bool true' "$plist"
 plutil -lint "$plist" >/dev/null
 
-# Sparkle has helper apps and XPC services inside its framework. Sign nested
-# code first, then the framework, executable, and enclosing app.
 install_name_tool -add_rpath '@executable_path/../Frameworks' "$stage_app/Contents/MacOS/FocusIsland" 2>/dev/null || true
-identity="${CODE_SIGN_IDENTITY:--}"
-sign() { codesign --force --sign "$identity" --timestamp=none "$1"; }
-while IFS= read -r -d '' nested; do sign "$nested"; done < <(find "$stage_app/Contents/Frameworks/Sparkle.framework" \( -name '*.app' -o -name '*.xpc' \) -type d -print0)
-sign "$stage_app/Contents/Frameworks/Sparkle.framework"
-sign "$stage_app/Contents/MacOS/FocusIsland"
-sign "$stage_app"
-codesign --verify --deep --strict "$stage_app"
+# Ad hoc by default. Set CODE_SIGN_IDENTITY to the project certificate's SHA-1
+# (config/code-signing-certificate.txt) to keep Accessibility grants across local builds.
+"$root/scripts/sign-app.sh" "$stage_app" "${CODE_SIGN_IDENTITY:--}"
 
 mkdir -p "$root/dist"
 /bin/rm -rf "$app_path"

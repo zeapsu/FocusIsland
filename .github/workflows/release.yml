@@ -24,6 +24,7 @@ jobs:
       cancel-in-progress: false
     env:
       CI_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+      EXPECT_PROJECT_SIGNATURE: '1'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -34,9 +35,27 @@ jobs:
           path: dist
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
-      - name: Restore and verify the tested app bundle
+      - name: Restore the tested app bundle and sign it with the project certificate
+        env:
+          CODE_SIGNING_P12: ${{ secrets.CODE_SIGNING_P12 }}
+          CODE_SIGNING_P12_PASSWORD: ${{ secrets.CODE_SIGNING_P12_PASSWORD }}
         run: |
           ditto -x -k dist/Focus-Island-bundle.zip dist
+          # CI builds stay ad hoc. Only this job sees the certificate, in a
+          # temporary keychain deleted before the next step.
+          [[ -n "$CODE_SIGNING_P12" && -n "$CODE_SIGNING_P12_PASSWORD" ]] || { echo 'Code-signing secrets are missing.' >&2; exit 1; }
+          keychain="$RUNNER_TEMP/focus-island-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 900 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          trap 'security delete-keychain "$keychain" 2>/dev/null; rm -f "$RUNNER_TEMP/signing.p12"' EXIT
+          printf '%s' "$CODE_SIGNING_P12" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$CODE_SIGNING_P12_PASSWORD" -T /usr/bin/codesign >/dev/null
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" >/dev/null
+          CODE_SIGN_KEYCHAIN="$keychain" ./scripts/sign-app.sh "dist/Focus Island.app" "$(tr -d '[:space:]' < config/code-signing-certificate.txt)"
+      - name: Verify the signed app bundle
+        run: |
           export BUILD_NUMBER=$((1000 + CI_RUN_NUMBER))
           EXPECT_UNIVERSAL=1 ./scripts/verify-app.sh
           printf 'BUILD_NUMBER=%s\nRELEASE_TAG=v%s-build.%s\n' "$BUILD_NUMBER" "$(tr -d '[:space:]' < VERSION)" "$BUILD_NUMBER" >> "$GITHUB_ENV"
