@@ -45,6 +45,36 @@ public enum IslandGeometry {
         !yielding || x >= notchMinX
     }
 
+    /// What Accessibility shows of the macOS 27 menu bar on the island's display.
+    public struct MenuBarReading: Equatable {
+        /// Horizontal span of the `<<` overflow control.
+        public var control: ClosedRange<CGFloat>?
+        /// Hidden status items are drawn left of the notch while the overflow is open.
+        public var overflowOpen: Bool
+        public init(control: ClosedRange<CGFloat>?, overflowOpen: Bool) {
+            self.control = control
+            self.overflowOpen = overflowOpen
+        }
+    }
+
+    /// Interprets frames read from MenuBarAgent's windows, in Accessibility's
+    /// top-left coordinates. `controls` are buttons directly in a menu-bar window
+    /// (the overflow control); `items` are the per-icon buttons one level down.
+    /// While closed, hidden items stack behind the control right of the notch.
+    public static func menuBarReading(controls: [CGRect], items: [CGRect], band: CGRect,
+                                      notchMinX: CGFloat, notchMaxX: CGFloat) -> MenuBarReading {
+        func inBand(_ r: CGRect) -> Bool { r.midY >= band.minY && r.midY <= band.maxY && r.minX >= band.minX && r.maxX <= band.maxX }
+        let control = controls.first { inBand($0) && $0.minX >= notchMaxX - 4 }
+        let open = items.contains { inBand($0) && $0.maxX <= notchMinX }
+        return MenuBarReading(control: control.map { $0.minX...$0.maxX }, overflowOpen: open)
+    }
+
+    /// The trailing wing stays only while it ends clear of the overflow control.
+    public static func trailingWingFits(control: ClosedRange<CGFloat>?, notchMaxX: CGFloat, trailingWing: CGFloat) -> Bool {
+        guard let control else { return true }
+        return notchMaxX + trailingWing <= control.lowerBound
+    }
+
     /// How far right of the island's trailing wing the `<<` overflow control is
     /// expected. It is the leftmost status item, so only its position is guessed.
     public static let overflowControlReach: CGFloat = 44

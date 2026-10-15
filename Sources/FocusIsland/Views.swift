@@ -88,13 +88,19 @@ struct IslandView: View {
             let leading = island.leadingWing + (expandedWing - island.leadingWing) * island.expansion
             let trailing = island.trailingWing + (expandedWing - island.trailingWing) * island.expansion
             HStack(spacing: 0) {
-                Group {
+                HStack(spacing: 8) {
                     if model.snapshot.state == .hardStopReached {
                         Text("Move").font(.system(size: 12, weight: .semibold)).foregroundStyle(palette.warning)
                     } else if model.clockText.isEmpty {
                         Image(systemName: model.icon).foregroundStyle(palette.accent)
                     } else {
                         Text(model.clockText).font(.system(size: 12, weight: .semibold, design: .monospaced)).monospacedDigit()
+                    }
+                    // The trailing wing closed to clear the `<<` control; keep its icon visible here.
+                    if island.trailingYields && model.snapshot.state != .idle && island.expansion < 1 {
+                        Image(systemName: model.icon).font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(model.snapshot.state == .hardStopReached ? palette.warning : palette.accent)
+                            .opacity(Double(1 - island.expansion))
                     }
                 }.frame(width: leading)
                     .accessibilityLabel("\(model.title), \(model.clockText)")
@@ -175,14 +181,16 @@ struct SettingsView: View {
     @ObservedObject var model: SessionController
     @ObservedObject var updater: UpdateController
     @ObservedObject var notifications: NotificationManager
+    let menuBar: MenuBarObserver?
     @State private var checkpoint: String
     @State private var hardStop: String
     @State private var breakTime: String
     @State private var saved = false
 
-    init(model: SessionController, updater: UpdateController) {
+    init(model: SessionController, updater: UpdateController, menuBar: MenuBarObserver?) {
         self.model = model
         self.updater = updater
+        self.menuBar = menuBar
         notifications = model.notifications
         _checkpoint = State(initialValue: String(model.settings.checkpointMinutes))
         _hardStop = State(initialValue: String(model.settings.hardStopMinutes))
@@ -226,6 +234,10 @@ struct SettingsView: View {
                     .disabled(notifications.isRequestingPermission || notifications.authorizationStatus == nil)
                     .accessibilityIdentifier("notificationPermission")
             }
+            if let menuBar {
+                Divider()
+                MenuBarAccessRow(menuBar: menuBar)
+            }
             if updater.isEnabled {
                 Divider()
                 VStack(alignment: .leading, spacing: 8) {
@@ -252,6 +264,31 @@ struct SettingsView: View {
             Text(label)
             TextField(label, text: value).textFieldStyle(.roundedBorder).frame(width: 64).accessibilityLabel(label + " minutes")
             Text(hint).font(.caption).foregroundStyle(Palette.system.secondaryText)
+        }
+    }
+}
+
+/// Explains the Accessibility grant before asking for it. The island works
+/// without it, guessing the `<<` overflow from clicks.
+struct MenuBarAccessRow: View {
+    @ObservedObject var menuBar: MenuBarObserver
+    var body: some View {
+        let palette = Palette.system
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Menu bar icons beside the notch").font(.headline)
+            Text(menuBar.isTrusted
+                 ? "Allowed. The island folds away while hidden menu bar icons are shown and moves its right icon when it would cover the << button."
+                 : "With Accessibility access, Focus Island reads where menu bar icons sit, so it can fold away while hidden icons are shown and avoid covering the << button. Without it, the island guesses from your clicks.")
+                .font(.callout).foregroundStyle(palette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("menuBarAccessStatus")
+            if !menuBar.isTrusted {
+                Button("Allow Accessibility Access…", action: menuBar.requestAccess)
+                    .accessibilityIdentifier("menuBarAccess")
+                Text("Focus Island only reads menu bar positions. macOS may ask again after an update until releases are signed with a Developer ID.")
+                    .font(.caption).foregroundStyle(palette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }

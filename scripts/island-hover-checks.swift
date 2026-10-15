@@ -147,6 +147,24 @@ struct IslandView: View {
             controller.menuBandClicked(at: NSPoint(x: notchMaxX + presentation.baseTrailingWing + 16, y: bandY))
             settle()
             expect(presentation.wingFold == 0 && presentation.leadingWing == presentation.baseLeadingWing, "second << click restores the wings")
+            // Accessibility readings, in top-left coordinates for the primary display.
+            let axY = (NSScreen.screens.first?.frame.maxY ?? screen.frame.maxY) - screen.frame.maxY
+            let control = CGRect(x: notchMaxX + 21, y: axY + 1, width: 17, height: 31)
+            let leftOfNotch = CGRect(x: screen.frame.midX - presentation.notchWidth / 2 - 50, y: axY + 5, width: 24, height: 24)
+            controller.applyMenuBarFrames((controls: [control], items: []))
+            settle()
+            expect(presentation.trailingYields && presentation.trailingWing == 0 && presentation.wingFold == 0, "<< under the trailing wing closes it")
+            controller.applyMenuBarFrames((controls: [control], items: [leftOfNotch]))
+            settle()
+            expect(presentation.wingFold == 1, "hidden icons left of the notch fold the wings")
+            controller.menuBandClicked(at: NSPoint(x: notchMaxX + 28 + 16, y: bandY))
+            settle()
+            expect(presentation.wingFold == 1, "clicks do not override Accessibility readings")
+            controller.applyMenuBarFrames((controls: [control.offsetBy(dx: 30, dy: 0)], items: []))
+            settle()
+            expect(!presentation.trailingYields && presentation.trailingWing == 28 && presentation.wingFold == 0, "closed overflow with << clear restores both wings")
+            controller.applyMenuBarFrames(nil)
+            settle()
         }
         expect(app.keyWindow === originalKeyWindow, "passive controller updates preserve keyboard focus")
         if !presentation.attachedToNotch {

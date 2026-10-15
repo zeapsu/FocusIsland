@@ -13,6 +13,9 @@ import FocusCore
     @Published var baseTrailingWing: CGFloat = 28
     /// 1 while the macOS 27 menu-bar overflow is open: the wings fold into the notch.
     @Published var wingFold: CGFloat = 0
+    /// True when Accessibility shows the `<<` control under the trailing wing;
+    /// the state icon then moves next to the clock.
+    @Published var trailingYields = false
     var leadingWing: CGFloat { baseLeadingWing * (1 - wingFold) }
     var trailingWing: CGFloat { baseTrailingWing * (1 - wingFold) }
     @Published var canvasWidth: CGFloat = 340
@@ -90,13 +93,19 @@ final class IslandWindowController {
     private let pointerLocation: () -> NSPoint
     private let menuBarFrame: @MainActor (NSScreen) -> CGRect?
     private let saveFold: (Bool) -> Void
+    private let refreshMenuBar: () -> Void
+    /// Set once Accessibility readings arrive; the fold then follows them instead of clicks.
+    private var menuBarReading: IslandGeometry.MenuBarReading?
 
     init(model: SessionController, openMenu: @escaping () -> Void,
          pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
          menuBarFrame: @escaping @MainActor (NSScreen) -> CGRect? = SystemMenuBar.frame,
-         restoredFold: Bool = false, saveFold: @escaping (Bool) -> Void = { _ in }) {
+         restoredFold: Bool = false, saveFold: @escaping (Bool) -> Void = { _ in },
+         menuBarFrames: AnyPublisher<(controls: [CGRect], items: [CGRect])?, Never>? = nil,
+         refreshMenuBar: @escaping () -> Void = {}) {
         self.model = model
         self.saveFold = saveFold
+        self.refreshMenuBar = refreshMenuBar
         self.pointerLocation = pointerLocation
         self.menuBarFrame = menuBarFrame
         panel = PassivePanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -141,7 +150,14 @@ final class IslandWindowController {
         if yieldsToOverflow, let monitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown, handler: { [weak self] _ in
             guard let self else { return }
             self.menuBandClicked(at: self.pointerLocation())
+            // Re-read the menu bar soon after a click instead of waiting for the next tick.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in self?.refreshMenuBar() }
         }) { pointerMonitors.append(monitor) }
+        if yieldsToOverflow, let menuBarFrames {
+            menuBarFrames.receive(on: DispatchQueue.main).sink { [weak self] frames in
+                self?.applyMenuBarFrames(frames)
+            }.store(in: &subscriptions)
+        }
         model.$snapshot.map(\.state).removeDuplicates().sink { [weak self] state in
             guard let self else { return }
             self.displayedState = state
@@ -285,12 +301,34 @@ final class IslandWindowController {
         collapse = nil
         expand = nil
     }
+    func applyMenuBarFrames(_ frames: (controls: [CGRect], items: [CGRect])?) {
+        guard presentation.attachedToNotch, let screen = selectedScreen, let frames else {
+            menuBarReading = nil
+            if presentation.trailingYields { presentation.trailingYields = false; reposition() }
+            return
+        }
+        // Accessibility frames use top-left coordinates from the primary display.
+        let primaryTop = NSScreen.screens.first?.frame.maxY ?? screen.frame.maxY
+        let band = CGRect(x: screen.frame.minX, y: primaryTop - screen.frame.maxY,
+                          width: screen.frame.width, height: presentation.notchHeight)
+        let notchMaxX = notchMinX + presentation.notchWidth
+        let reading = IslandGeometry.menuBarReading(controls: frames.controls, items: frames.items, band: band,
+                                                    notchMinX: notchMinX, notchMaxX: notchMaxX)
+        menuBarReading = reading
+        let yields = !IslandGeometry.trailingWingFits(control: reading.control, notchMaxX: notchMaxX, trailingWing: 28)
+        if yields != presentation.trailingYields { presentation.trailingYields = yields; reposition() }
+        setFold(reading.overflowOpen)
+    }
     func menuBandClicked(at point: NSPoint) {
-        guard yieldsToOverflow, presentation.attachedToNotch, let screen = selectedScreen else { return }
+        // Accessibility readings, when granted, replace the click guess.
+        guard menuBarReading == nil, yieldsToOverflow, presentation.attachedToNotch, let screen = selectedScreen else { return }
         let band = CGRect(x: screen.frame.minX, y: screen.frame.maxY - presentation.notchHeight,
                           width: screen.frame.width, height: presentation.notchHeight)
         let folded = IslandGeometry.overflowFolded(after: point, folded: overflowFolded, menuBand: band,
             notchMaxX: notchMinX + presentation.notchWidth, trailingWing: presentation.baseTrailingWing)
+        setFold(folded)
+    }
+    private func setFold(_ folded: Bool) {
         guard folded != overflowFolded else { return }
         overflowFolded = folded
         saveFold(folded)
@@ -353,8 +391,11 @@ final class IslandWindowController {
         notchMinX = screen.frame.midX - notchWidth / 2
         presentation.notchHeight = IslandGeometry.notchHeaderHeight(safeAreaTop: screen.safeAreaInsets.top)
         let expandedWidth = max(400, notchWidth + 200)
-        presentation.baseLeadingWing = displayedState == .idle ? 28 : 72
-        presentation.baseTrailingWing = 28
+        // When the `<<` control would sit under the trailing wing, the state icon
+        // joins the clock on the leading side and the trailing wing closes.
+        let yields = presentation.trailingYields
+        presentation.baseLeadingWing = displayedState == .idle ? 28 : (yields ? 94 : 72)
+        presentation.baseTrailingWing = yields ? 0 : 28
         presentation.expandedWidth = expandedWidth
         presentation.canvasWidth = expandedWidth + (presentation.attachedToNotch ? 2 * IslandGeometry.maximumTopFlare : 0)
         presentation.canvasHeight = presentation.headerHeight + 126

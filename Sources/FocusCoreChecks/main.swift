@@ -221,6 +221,18 @@ func testIslandGeometry() throws {
     try check(!foldStore.loadOverflowFold(bootTime: boot.addingTimeInterval(3_600)), "fold resets after a restart")
     foldStore.saveOverflowFold(false, bootTime: boot)
     try check(!foldStore.loadOverflowFold(bootTime: boot), "unfolding clears the stored fold")
+    // Frames read through Accessibility on macOS 27.0.1 (MacBook Air, notch 762.5–947.5).
+    let axBand = CGRect(x: 0, y: 0, width: 1710, height: 34)
+    let chevron = CGRect(x: 969, y: 1, width: 17, height: 31)
+    let stacked = [CGRect(x: 955, y: 5, width: 24, height: 24), CGRect(x: 1001, y: 5, width: 24, height: 24), CGRect(x: 1303, y: 0, width: 22, height: 34)]
+    let closed = IslandGeometry.menuBarReading(controls: [chevron], items: stacked, band: axBand, notchMinX: 762.5, notchMaxX: 947.5)
+    try check(closed == .init(control: 969...986, overflowOpen: false), "closed overflow: hidden icons stack right of the notch")
+    let opened = IslandGeometry.menuBarReading(controls: [chevron], items: stacked + [CGRect(x: 711, y: 5, width: 24, height: 24)], band: axBand, notchMinX: 762.5, notchMaxX: 947.5)
+    try check(opened.overflowOpen, "open overflow: a hidden icon left of the notch")
+    let otherDisplay = IslandGeometry.menuBarReading(controls: [CGRect(x: 2500, y: -900, width: 17, height: 31)], items: [CGRect(x: 2000, y: -895, width: 24, height: 24)], band: axBand, notchMinX: 762.5, notchMaxX: 947.5)
+    try check(otherDisplay == .init(control: nil, overflowOpen: false), "another display's menu bar is ignored")
+    try check(!IslandGeometry.trailingWingFits(control: 969...986, notchMaxX: 947.5, trailingWing: 28), "<< under the trailing wing makes it yield")
+    try check(IslandGeometry.trailingWingFits(control: 999...1016, notchMaxX: 947.5, trailingWing: 28) && IslandGeometry.trailingWingFits(control: nil, notchMaxX: 947.5, trailingWing: 28), "trailing wing stays when << is clear or absent")
     let fractional = IslandGeometry.frame(display: notchedDisplay, visible: menuVisible, safeAreaTop: 33.5, size: CGSize(width: 428, height: IslandGeometry.notchHeaderHeight(safeAreaTop: 33.5) + 126), attachedToNotch: true)
     try check(fractional.maxY == notchedDisplay.maxY && fractional.minY == fractional.minY.rounded(), "fractional notch inset keeps the shell on whole points at the screen top")
     let attached = IslandGeometry.frame(display: notchedDisplay, visible: menuVisible, safeAreaTop: 33, size: CGSize(width: 241, height: 33), attachedToNotch: true)
