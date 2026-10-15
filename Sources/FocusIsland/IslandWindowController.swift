@@ -89,11 +89,14 @@ final class IslandWindowController {
     private var pointerMonitors: [Any] = []
     private let pointerLocation: () -> NSPoint
     private let menuBarFrame: @MainActor (NSScreen) -> CGRect?
+    private let saveFold: (Bool) -> Void
 
     init(model: SessionController, openMenu: @escaping () -> Void,
          pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
-         menuBarFrame: @escaping @MainActor (NSScreen) -> CGRect? = SystemMenuBar.frame) {
+         menuBarFrame: @escaping @MainActor (NSScreen) -> CGRect? = SystemMenuBar.frame,
+         restoredFold: Bool = false, saveFold: @escaping (Bool) -> Void = { _ in }) {
         self.model = model
+        self.saveFold = saveFold
         self.pointerLocation = pointerLocation
         self.menuBarFrame = menuBarFrame
         panel = PassivePanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -120,6 +123,10 @@ final class IslandWindowController {
         host.hoverChanged = { [weak self] _ in self?.updatePointer() }
         panel.contentView = host
         chooseScreen()
+        if yieldsToOverflow, presentation.attachedToNotch, restoredFold {
+            overflowFolded = true
+            presentation.wingFold = 1
+        }
         reposition()
         updateVisibility()
         // Tracking events can be missed by nonactivating panels, especially after a resize.
@@ -286,6 +293,7 @@ final class IslandWindowController {
             notchMaxX: notchMinX + presentation.notchWidth, trailingWing: presentation.baseTrailingWing)
         guard folded != overflowFolded else { return }
         overflowFolded = folded
+        saveFold(folded)
         foldTimer?.cancel()
         foldTimer = nil
         let target: CGFloat = folded ? 1 : 0

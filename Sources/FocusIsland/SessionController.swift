@@ -10,7 +10,7 @@ final class SessionController: ObservableObject {
     @Published private(set) var completionMessage: String?
     let notifications: NotificationManager
     let isQA: Bool
-    private let store: LocalStore
+    let store: LocalStore
     private var engine: SessionEngine
     private var ticker: AnyCancellable?
     private var observers: [NSObjectProtocol] = []
