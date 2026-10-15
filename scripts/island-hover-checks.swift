@@ -132,21 +132,36 @@ struct IslandView: View {
             settle()
             expect(collapsed() && controller.panel.level.rawValue == NSWindow.Level.mainMenu.rawValue - 1, "collapse returns the island under the menu bar")
             let notchMaxX = screen.frame.midX + presentation.notchWidth / 2
-            let bandY = screen.frame.maxY - presentation.headerHeight / 2
-            controller.menuBandClicked(at: NSPoint(x: notchMaxX + presentation.baseTrailingWing + 16, y: bandY))
+            // Accessibility readings, in top-left coordinates for the primary display.
+            let axY = (NSScreen.screens.first?.frame.maxY ?? screen.frame.maxY) - screen.frame.maxY
+            let control = CGRect(x: notchMaxX + 21, y: axY + 1, width: 17, height: 31)
+            let leftOfNotch = CGRect(x: screen.frame.midX - presentation.notchWidth / 2 - 50, y: axY + 5, width: 24, height: 24)
+            controller.applyMenuBarFrames((controls: [control.offsetBy(dx: 6, dy: 0)], items: []))
             settle()
-            expect(presentation.wingFold == 1 && presentation.leadingWing == 0 && presentation.trailingWing == 0, "<< click folds both wings into the notch")
-            controller.menuBandClicked(at: NSPoint(x: screen.frame.midX - presentation.notchWidth / 2 - 40, y: bandY))
+            expect(!presentation.trailingYields && presentation.trailingWing == 21, "<< just past the trailing wing narrows it")
+            controller.applyMenuBarFrames((controls: [control], items: []))
             settle()
-            expect(presentation.wingFold == 1, "clicks off the << position keep the wings folded")
+            expect(presentation.trailingYields && presentation.trailingWing == 0 && presentation.wingFold == 0, "<< under the trailing wing closes it")
+            controller.applyMenuBarFrames((controls: [control], items: [leftOfNotch]))
+            settle()
+            expect(presentation.wingFold == 1, "hidden icons left of the notch fold the wings")
             pointer = headerPoint()
             settle()
             expect(presentation.expanded && presentation.expansion == 1, "hover still expands a folded island")
             pointer = outside
             settle()
-            controller.menuBandClicked(at: NSPoint(x: notchMaxX + presentation.baseTrailingWing + 16, y: bandY))
+            expect(presentation.wingFold == 1, "the fold persists while the overflow reads open")
+            controller.applyMenuBarFrames((controls: [control.offsetBy(dx: 30, dy: 0)], items: []))
             settle()
-            expect(presentation.wingFold == 0 && presentation.leadingWing == presentation.baseLeadingWing, "second << click restores the wings")
+            expect(!presentation.trailingYields && presentation.trailingWing == 28 && presentation.wingFold == 0, "closed overflow with << clear restores both wings")
+            controller.applyMenuBarFrames((controls: [], items: [leftOfNotch]))
+            settle()
+            expect(presentation.wingFold == 0, "a reading without << stays unfolded")
+            controller.applyMenuBarFrames((controls: [], items: [CGRect(x: notchMaxX + 27.5, y: axY + 5, width: 24, height: 24)]))
+            settle()
+            expect(presentation.trailingYields && presentation.wingFold == 0, "without <<, an icon beside the notch closes the trailing wing")
+            controller.applyMenuBarFrames(nil)
+            settle()
         }
         expect(app.keyWindow === originalKeyWindow, "passive controller updates preserve keyboard focus")
         if !presentation.attachedToNotch {

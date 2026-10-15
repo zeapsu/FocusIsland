@@ -5,6 +5,10 @@ import CoreGraphics
 /// from AppKit makes the display and safe-area behaviour deterministic to test.
 public enum IslandGeometry {
     public static let maximumTopFlare: CGFloat = 14
+    /// The collapsed shell's top corners flare this far past its wings.
+    public static let collapsedTopFlare: CGFloat = 6
+    /// A status icon's click highlight extends about this far past its Accessibility frame.
+    public static let statusItemPadding: CGFloat = 7
 
     /// WindowServer uses top-left coordinates relative to the primary display.
     /// Only pass windows at the system's main-menu window level. Names and
@@ -45,21 +49,49 @@ public enum IslandGeometry {
         !yielding || x >= notchMinX
     }
 
-    /// How far right of the island's trailing wing the `<<` overflow control is
-    /// expected. It is the leftmost status item, so only its position is guessed.
-    public static let overflowControlReach: CGFloat = 44
-
-    /// Whether the wings are folded into the notch after a click in another app.
-    /// Only a click just right of the trailing wing, where macOS 27 puts the
-    /// `<<` overflow control, toggles the fold. The overflow stays open while
-    /// people click in other apps or on its items, so no other click changes it.
-    public static func overflowFolded(after click: CGPoint, folded: Bool, menuBand: CGRect,
-                                      notchMaxX: CGFloat, trailingWing: CGFloat) -> Bool {
-        let controlStart = notchMaxX + trailingWing
-        let onControl = click.y >= menuBand.minY && click.y <= menuBand.maxY &&
-            click.x >= controlStart && click.x <= controlStart + overflowControlReach
-        return onControl ? !folded : folded
+    /// What Accessibility shows of the macOS 27 menu bar on the island's display.
+    public struct MenuBarReading: Equatable {
+        /// Horizontal span of the `<<` overflow control.
+        public var control: ClosedRange<CGFloat>?
+        /// Hidden status items are drawn left of the notch while the overflow is open.
+        public var overflowOpen: Bool
+        /// What the trailing wing must end before: the `<<` control, or without
+        /// it the first status icon right of the notch, padded to its highlight.
+        public var trailingLimit: ClosedRange<CGFloat>?
+        public init(control: ClosedRange<CGFloat>?, overflowOpen: Bool, trailingLimit: ClosedRange<CGFloat>? = nil) {
+            self.control = control
+            self.overflowOpen = overflowOpen
+            self.trailingLimit = trailingLimit ?? control
+        }
     }
+
+    /// Interprets frames read from MenuBarAgent's windows, in Accessibility's
+    /// top-left coordinates. `controls` are buttons directly in a menu-bar window
+    /// (the overflow control); `items` are the per-icon buttons one level down.
+    /// While closed, hidden items stack behind the control right of the notch.
+    public static func menuBarReading(controls: [CGRect], items: [CGRect], band: CGRect,
+                                      notchMinX: CGFloat, notchMaxX: CGFloat) -> MenuBarReading {
+        func inBand(_ r: CGRect) -> Bool { r.midY >= band.minY && r.midY <= band.maxY && r.minX >= band.minX && r.maxX <= band.maxX }
+        let control = controls.first { inBand($0) && $0.minX >= notchMaxX - 4 }
+        let visible = items.filter { $0.width > 0 && $0.height > 0 && inBand($0) }
+        let open = visible.contains { $0.maxX <= notchMinX }
+        // While << shows, hidden icons stack behind it right of the notch, so
+        // only without it are the icons there really visible.
+        let firstRight = visible.filter { $0.minX >= notchMaxX - 4 }.min { $0.minX < $1.minX }
+        let limit = control.map { $0.minX...$0.maxX } ?? firstRight.map { ($0.minX - statusItemPadding)...$0.maxX }
+        return MenuBarReading(control: control.map { $0.minX...$0.maxX }, overflowOpen: open, trailingLimit: limit)
+    }
+
+    /// The trailing wing narrows so its top flare ends at `limit` (see
+    /// `MenuBarReading.trailingLimit`), and closes (0) when that leaves less
+    /// than `minimum` for the state icon.
+    public static func trailingWingWidth(limit: ClosedRange<CGFloat>?, notchMaxX: CGFloat,
+                                         preferred: CGFloat = 28, minimum: CGFloat = 16) -> CGFloat {
+        guard let limit else { return preferred }
+        let room = limit.lowerBound - notchMaxX - collapsedTopFlare
+        return room >= preferred ? preferred : (room >= minimum ? room : 0)
+    }
+
     /// The drawing and input system share this exact path in local top-left coordinates.
     public static func surfacePath(size: CGSize, headerWidth: CGFloat, headerHeight: CGFloat,
                                    headerOffset: CGFloat, expandedHeight: CGFloat,
@@ -76,7 +108,7 @@ public enum IslandGeometry {
         let right = left + width
         let height = headerHeight + bodyHeight
         let radius = min(12 + 10 * progress, height / 2)
-        let topFlare = min(6 + (maximumTopFlare - 6) * progress, height / 4)
+        let topFlare = min(collapsedTopFlare + (maximumTopFlare - collapsedTopFlare) * progress, height / 4)
         let path = CGMutablePath()
         path.move(to: CGPoint(x: left - topFlare, y: 0))
         path.addLine(to: CGPoint(x: right + topFlare, y: 0))

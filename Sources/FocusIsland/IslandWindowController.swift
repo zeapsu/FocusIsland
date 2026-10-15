@@ -13,6 +13,10 @@ import FocusCore
     @Published var baseTrailingWing: CGFloat = 28
     /// 1 while the macOS 27 menu-bar overflow is open: the wings fold into the notch.
     @Published var wingFold: CGFloat = 0
+    /// The trailing wing's width beside `<<` or the first status icon, read through Accessibility.
+    /// At 0 the state icon moves next to the clock.
+    @Published var fittedTrailingWing: CGFloat = 28
+    var trailingYields: Bool { fittedTrailingWing == 0 }
     var leadingWing: CGFloat { baseLeadingWing * (1 - wingFold) }
     var trailingWing: CGFloat { baseTrailingWing * (1 - wingFold) }
     @Published var canvasWidth: CGFloat = 340
@@ -89,11 +93,19 @@ final class IslandWindowController {
     private var pointerMonitors: [Any] = []
     private let pointerLocation: () -> NSPoint
     private let menuBarFrame: @MainActor (NSScreen) -> CGRect?
+    private let refreshMenuBar: () -> Void
+    private let setMenuBarActive: (Bool) -> Void
+    private var lastMenuBarFrames: (controls: [CGRect], items: [CGRect])?
+    private var applyingMenuBarFrames = false
 
     init(model: SessionController, openMenu: @escaping () -> Void,
          pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
-         menuBarFrame: @escaping @MainActor (NSScreen) -> CGRect? = SystemMenuBar.frame) {
+         menuBarFrame: @escaping @MainActor (NSScreen) -> CGRect? = SystemMenuBar.frame,
+         menuBarFrames: AnyPublisher<(controls: [CGRect], items: [CGRect])?, Never>? = nil,
+         refreshMenuBar: @escaping () -> Void = {}, setMenuBarActive: @escaping (Bool) -> Void = { _ in }) {
         self.model = model
+        self.refreshMenuBar = refreshMenuBar
+        self.setMenuBarActive = setMenuBarActive
         self.pointerLocation = pointerLocation
         self.menuBarFrame = menuBarFrame
         panel = PassivePanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -132,9 +144,17 @@ final class IslandWindowController {
         // Global mouse monitors need no Accessibility permission. They only see
         // clicks delivered to other apps, such as the system menu bar.
         if yieldsToOverflow, let monitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown, handler: { [weak self] _ in
-            guard let self else { return }
-            self.menuBandClicked(at: self.pointerLocation())
+            // Re-read the menu bar soon after a click instead of waiting for the next
+            // tick, and again once the icons have finished sliding.
+            for delay in [0.15, 0.4] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.refreshMenuBar() }
+            }
         }) { pointerMonitors.append(monitor) }
+        if yieldsToOverflow, let menuBarFrames {
+            menuBarFrames.receive(on: DispatchQueue.main).sink { [weak self] frames in
+                self?.applyMenuBarFrames(frames)
+            }.store(in: &subscriptions)
+        }
         model.$snapshot.map(\.state).removeDuplicates().sink { [weak self] state in
             guard let self else { return }
             self.displayedState = state
@@ -278,12 +298,33 @@ final class IslandWindowController {
         collapse = nil
         expand = nil
     }
-    func menuBandClicked(at point: NSPoint) {
-        guard yieldsToOverflow, presentation.attachedToNotch, let screen = selectedScreen else { return }
-        let band = CGRect(x: screen.frame.minX, y: screen.frame.maxY - presentation.notchHeight,
+    func applyMenuBarFrames(_ frames: (controls: [CGRect], items: [CGRect])?) {
+        lastMenuBarFrames = frames
+        applyingMenuBarFrames = true
+        defer { applyingMenuBarFrames = false }
+        guard presentation.attachedToNotch, let screen = selectedScreen, let frames else {
+            fitTrailingWing(28)
+            setFold(false)
+            return
+        }
+        // Accessibility frames use top-left coordinates from the primary display.
+        let primaryTop = NSScreen.screens.first?.frame.maxY ?? screen.frame.maxY
+        let band = CGRect(x: screen.frame.minX, y: primaryTop - screen.frame.maxY,
                           width: screen.frame.width, height: presentation.notchHeight)
-        let folded = IslandGeometry.overflowFolded(after: point, folded: overflowFolded, menuBand: band,
-            notchMaxX: notchMinX + presentation.notchWidth, trailingWing: presentation.baseTrailingWing)
+        let notchMaxX = notchMinX + presentation.notchWidth
+        let reading = IslandGeometry.menuBarReading(controls: frames.controls, items: frames.items, band: band,
+                                                    notchMinX: notchMinX, notchMaxX: notchMaxX)
+        fitTrailingWing(IslandGeometry.trailingWingWidth(limit: reading.trailingLimit, notchMaxX: notchMaxX))
+        // Without a << control on this display there is no overflow to follow,
+        // or the macOS layout changed from what was measured; stay unfolded.
+        setFold(reading.control != nil && reading.overflowOpen)
+    }
+    private func fitTrailingWing(_ width: CGFloat) {
+        guard width != presentation.fittedTrailingWing else { return }
+        presentation.fittedTrailingWing = width
+        reposition()
+    }
+    private func setFold(_ folded: Bool) {
         guard folded != overflowFolded else { return }
         overflowFolded = folded
         foldTimer?.cancel()
@@ -345,8 +386,11 @@ final class IslandWindowController {
         notchMinX = screen.frame.midX - notchWidth / 2
         presentation.notchHeight = IslandGeometry.notchHeaderHeight(safeAreaTop: screen.safeAreaInsets.top)
         let expandedWidth = max(400, notchWidth + 200)
-        presentation.baseLeadingWing = displayedState == .idle ? 28 : 72
-        presentation.baseTrailingWing = 28
+        // The trailing wing narrows to clear `<<` or the first status icon; when it closes,
+        // the state icon joins the clock on the leading side.
+        let yields = presentation.trailingYields
+        presentation.baseLeadingWing = displayedState == .idle ? 28 : (yields ? 94 : 72)
+        presentation.baseTrailingWing = presentation.fittedTrailingWing
         presentation.expandedWidth = expandedWidth
         presentation.canvasWidth = expandedWidth + (presentation.attachedToNotch ? 2 * IslandGeometry.maximumTopFlare : 0)
         presentation.canvasHeight = presentation.headerHeight + 126
@@ -356,5 +400,8 @@ final class IslandWindowController {
         let size = NSSize(width: presentation.canvasWidth, height: presentation.canvasHeight)
         let frame = IslandGeometry.frame(display: screen.frame, visible: screen.visibleFrame, safeAreaTop: screen.safeAreaInsets.top, size: size, attachedToNotch: presentation.attachedToNotch, menuBarHeight: presentation.menuBarHeight)
         if panel.frame != frame { panel.setFrame(frame, display: true) }
+        // A display change re-interprets the last reading; the menu bar itself may not change.
+        setMenuBarActive(presentation.attachedToNotch)
+        if !applyingMenuBarFrames, let lastMenuBarFrames { applyMenuBarFrames(lastMenuBarFrames) }
     }
 }

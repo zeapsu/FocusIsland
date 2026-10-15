@@ -88,13 +88,22 @@ struct IslandView: View {
             let leading = island.leadingWing + (expandedWing - island.leadingWing) * island.expansion
             let trailing = island.trailingWing + (expandedWing - island.trailingWing) * island.expansion
             HStack(spacing: 0) {
-                Group {
+                HStack(spacing: 0) {
                     if model.snapshot.state == .hardStopReached {
                         Text("Move").font(.system(size: 12, weight: .semibold)).foregroundStyle(palette.warning)
                     } else if model.clockText.isEmpty {
                         Image(systemName: model.icon).foregroundStyle(palette.accent)
                     } else {
                         Text(model.clockText).font(.system(size: 12, weight: .semibold, design: .monospaced)).monospacedDigit()
+                    }
+                    // The trailing wing closed to clear the `<<` control; keep its icon visible here.
+                    // It narrows with the expansion so the text beside it slides instead of jumping.
+                    if island.trailingYields && model.snapshot.state != .idle {
+                        Image(systemName: model.icon).font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(model.snapshot.state == .hardStopReached ? palette.warning : palette.accent)
+                            .fixedSize().padding(.leading, 8)
+                            .frame(width: 22 * (1 - island.expansion), alignment: .leading).clipped()
+                            .opacity(Double(1 - island.expansion))
                     }
                 }.frame(width: leading)
                     .accessibilityLabel("\(model.title), \(model.clockText)")
@@ -107,7 +116,9 @@ struct IslandView: View {
                     }
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(model.snapshot.state == .hardStopReached ? palette.warning : palette.accent)
-                    .frame(width: trailing, height: island.headerHeight)
+                    // A closed or narrow wing would otherwise draw the icon past its edge.
+                    .opacity(Double(min(1, trailing / 16)))
+                    .frame(width: trailing, height: island.headerHeight).clipped()
                     .contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityLabel("Open timer menu").accessibilityIdentifier("islandMenu")
             }.foregroundStyle(palette.text)
@@ -175,14 +186,16 @@ struct SettingsView: View {
     @ObservedObject var model: SessionController
     @ObservedObject var updater: UpdateController
     @ObservedObject var notifications: NotificationManager
+    let menuBar: MenuBarObserver?
     @State private var checkpoint: String
     @State private var hardStop: String
     @State private var breakTime: String
     @State private var saved = false
 
-    init(model: SessionController, updater: UpdateController) {
+    init(model: SessionController, updater: UpdateController, menuBar: MenuBarObserver?) {
         self.model = model
         self.updater = updater
+        self.menuBar = menuBar
         notifications = model.notifications
         _checkpoint = State(initialValue: String(model.settings.checkpointMinutes))
         _hardStop = State(initialValue: String(model.settings.hardStopMinutes))
@@ -226,6 +239,10 @@ struct SettingsView: View {
                     .disabled(notifications.isRequestingPermission || notifications.authorizationStatus == nil)
                     .accessibilityIdentifier("notificationPermission")
             }
+            if let menuBar {
+                Divider()
+                MenuBarAccessRow(menuBar: menuBar)
+            }
             if updater.isEnabled {
                 Divider()
                 VStack(alignment: .leading, spacing: 8) {
@@ -252,6 +269,36 @@ struct SettingsView: View {
             Text(label)
             TextField(label, text: value).textFieldStyle(.roundedBorder).frame(width: 64).accessibilityLabel(label + " minutes")
             Text(hint).font(.caption).foregroundStyle(Palette.system.secondaryText)
+        }
+    }
+}
+
+/// Explains the Accessibility grant before asking for it. The island works
+/// without it, guessing the `<<` overflow from clicks.
+struct MenuBarAccessRow: View {
+    @ObservedObject var menuBar: MenuBarObserver
+    var body: some View {
+        let palette = Palette.system
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Menu bar icons beside the notch").font(.headline)
+            // Re-read every second, so this reflects changes made in System Settings.
+            Label(menuBar.isTrusted ? "Accessibility access is on" : "Accessibility access is off",
+                  systemImage: menuBar.isTrusted ? "checkmark.circle.fill" : "xmark.circle")
+                .foregroundStyle(menuBar.isTrusted ? Color.green : palette.secondaryText)
+                .accessibilityIdentifier("menuBarAccessState")
+            Text(menuBar.isTrusted
+                 ? "The island folds away while hidden menu bar icons are shown and moves its right icon when it would cover the << button."
+                 : "With Accessibility access, Focus Island reads where menu bar icons sit, so it can fold away while hidden icons are shown and avoid covering the << button. Without it, the island stays as it is.")
+                .font(.callout).foregroundStyle(palette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("menuBarAccessStatus")
+            if !menuBar.isTrusted {
+                Button("Allow Accessibility Access…", action: menuBar.requestAccess)
+                    .accessibilityIdentifier("menuBarAccess")
+                Text("Focus Island only reads where menu bar icons sit. If access stays off after you allow it, remove Focus Island from the Accessibility list and add it again.")
+                    .font(.caption).foregroundStyle(palette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }

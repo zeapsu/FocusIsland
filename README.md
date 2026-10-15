@@ -10,7 +10,7 @@ A small, native macOS focus timer that lives in the menu bar and grows out of th
 
 <p align="center"><img src="docs/assets/hero.png" alt="Focus Island expanded around the notch" width="640"></p>
 
-<p align="center"><img src="docs/assets/hover.gif" alt="A real hover recording: the compact notch shell expands into controls" width="640"></p>
+<p align="center"><img src="docs/assets/hover.gif" alt="Hovering the notch expands the island into its controls" width="640"></p>
 
 ## What it does
 
@@ -19,15 +19,18 @@ A small, native macOS focus timer that lives in the menu bar and grows out of th
 - Uses one shared session model for the menu bar, notch island, Settings, and notifications.
 - Expands from the notch into a small control surface on hover. The camera cutout stays clear, and the shell folds back after the pointer leaves.
 - Keeps the notch black; the menu and Settings follow macOS light or dark appearance.
+- On macOS 27, gets out of the way of the menu bar: hidden status icons revealed by `<<` draw over the island, and with optional Accessibility access the island folds into the notch while they show and narrows its right wing to fit beside `<<` or the first menu bar icon, moving the icon next to the clock only when there is no room.
 - Uses native notifications when allowed; declining permission never prevents the timer from working.
 
-<p align="center"><img src="docs/assets/settings.png" alt="Settings with durations, notifications, and automatic updates" width="500"></p>
+<p align="center"><img src="docs/assets/fold.gif" alt="On macOS 27, clicking the menu bar's << button folds the island into the notch while hidden icons show, and clicking >> brings it back" width="640"></p>
+
+<p align="center"><img src="docs/assets/settings.png" alt="Settings with durations, reminders, menu bar access, and automatic updates" width="500"></p>
 
 ## Install
 
 Download the [latest release](https://github.com/zeapsu/FocusIsland/releases/latest), move **Focus Island.app** to Applications if you like, and open it.
 
-The initial downloadable builds are ad-hoc signed. If macOS blocks the first launch, first try to open the app normally and dismiss the warning. Then open **Apple menu → System Settings → Privacy & Security**, scroll to **Security**, click **Open** for Focus Island, then click **Open Anyway** and authenticate. Apple makes this exception available for about an hour after the blocked launch. Do not disable Gatekeeper system-wide. Developer ID signing and notarization are planned before broad distribution. See Apple’s [unknown-developer app guidance](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac).
+Downloadable builds are signed with the project's own self-signed certificate, not an Apple Developer ID, and are not notarized. If macOS blocks the first launch, first try to open the app normally and dismiss the warning. Then open **Apple menu → System Settings → Privacy & Security**, scroll to **Security**, click **Open** for Focus Island, then click **Open Anyway** and authenticate. Apple makes this exception available for about an hour after the blocked launch. Do not disable Gatekeeper system-wide. See Apple’s [unknown-developer app guidance](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac).
 
 Focus Island is a menu-bar utility: it intentionally has no Dock icon. Open its menu-bar item to start a session, take a break, open Settings, or quit.
 
@@ -60,7 +63,7 @@ On a notched Mac, the compact island occupies the menu-bar band around the physi
 
 On physical-notch displays, the island remains available in native full-screen apps. On rectangular displays, it disappears when the system menu bar hides, including in full screen, and returns when the bar becomes visible. Expanded controls stay usable while the pointer is over their body and disappear after leaving if the bar has hidden. Hover never takes keyboard focus. One island follows the cursor display when the menu opens. The external-display version uses public window bounds to observe the actual menu-bar strip and stays hidden if that strip cannot be matched; live multi-display arrangements remain under active stabilization.
 
-On macOS 27 and later, the collapsed notch island sits just under the system menu-bar window, so status items revealed by the `<<` overflow control draw over its left wing and stay clickable. Hover from the camera area or the right wing raises and expands it as before. Clicking `<<` folds the island's wings into the notch so the overflow icons sit on a clear menu bar; clicking `>>` brings them back.
+On macOS 27 and later, the collapsed notch island sits just under the system menu-bar window, so status items revealed by the `<<` overflow control draw over its left wing and stay clickable. Hover from the camera area or the right wing raises and expands it as before. With Accessibility access, which you can allow from Settings, Focus Island reads where menu bar icons sit. It folds its wings into the notch while hidden icons are shown, and moves its right icon next to the clock when the `<<` button would sit under it. Focus Island only reads icon positions. Without access, the island does not fold. Starting with 1.1.6, releases are signed with the same certificate every time, so the permission carries over to updates; local ad hoc builds need it granted again after each rebuild.
 
 ## Updates and privacy
 

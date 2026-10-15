@@ -1,4 +1,5 @@
 import AppKit
+import FocusCore
 import SwiftUI
 import Combine
 
@@ -17,6 +18,9 @@ struct FocusIslandMain {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private lazy var model = SessionController()
     private lazy var updater = UpdateController(disabled: model.isQA)
+    /// Only macOS 27 puts overflowed status items beside the notch.
+    private let menuBar = IslandGeometry.yieldsToMenuBarOverflow(macOSMajor: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
+        ? MenuBarObserver() : nil
     private var statusItem: NSStatusItem?
     private var island: IslandWindowController?
     private var settingsWindow: NSWindow?
@@ -35,7 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        island = IslandWindowController(model: model, openMenu: { [weak self] in self?.toggleMenu() })
+        island = IslandWindowController(model: model, openMenu: { [weak self] in self?.toggleMenu() },
+            menuBarFrames: menuBar?.$frames.map { $0 }.eraseToAnyPublisher(),
+            refreshMenuBar: { [weak menuBar] in menuBar?.refresh() },
+            setMenuBarActive: { [weak menuBar] in menuBar?.isActive = $0 })
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem = item
         item.button?.target = self
@@ -193,7 +200,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func showSettings() {
         popover.performClose(nil)
         if settingsWindow == nil {
-            let host = NSHostingController(rootView: SettingsView(model: model, updater: updater))
+            let host = NSHostingController(rootView: SettingsView(model: model, updater: updater, menuBar: menuBar))
             let window = NSWindow(contentViewController: host)
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.title = "Focus Island Settings"
