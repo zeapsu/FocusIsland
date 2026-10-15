@@ -38,20 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var qaTimer: Timer?
     #endif
 
-    private static var bootTime: Date {
-        var time = timeval()
-        var size = MemoryLayout<timeval>.size
-        var mib: [Int32] = [CTL_KERN, KERN_BOOTTIME]
-        guard sysctl(&mib, 2, &time, &size, nil, 0) == 0 else { return Date.distantPast }
-        return Date(timeIntervalSince1970: TimeInterval(time.tv_sec) + TimeInterval(time.tv_usec) / 1_000_000)
-    }
-
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let store = model.store
-        let bootTime = Self.bootTime
         island = IslandWindowController(model: model, openMenu: { [weak self] in self?.toggleMenu() },
-            restoredFold: store.loadOverflowFold(bootTime: bootTime),
-            saveFold: { store.saveOverflowFold($0, bootTime: bootTime) },
             menuBarFrames: menuBar?.$frames.map { $0 }.eraseToAnyPublisher(),
             refreshMenuBar: { [weak menuBar] in menuBar?.refresh() },
             setMenuBarActive: { [weak menuBar] in menuBar?.isActive = $0 })

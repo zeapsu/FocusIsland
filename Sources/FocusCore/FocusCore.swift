@@ -258,7 +258,6 @@ public struct LocalStore {
     private let defaults: UserDefaults
     private let settingsKey = "focusIsland.settings.v1"
     private let sessionKey = "focusIsland.session.v1"
-    private let overflowFoldKey = "focusIsland.overflowFold.v1"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -286,19 +285,5 @@ public struct LocalStore {
     public func saveSession(_ snapshot: SessionSnapshot) {
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         defaults.set(data, forKey: sessionKey)
-    }
-
-    /// The macOS 27 menu-bar overflow stays open across app relaunches, such as
-    /// an update, but starts closed after a restart. The fold is stored with the
-    /// boot time it was observed in and only restored within that boot.
-    public func loadOverflowFold(bootTime: Date) -> Bool {
-        guard let stored = defaults.object(forKey: overflowFoldKey) as? Double else { return false }
-        // kern.boottime shifts when the wall clock is corrected after sleep.
-        return abs(stored - bootTime.timeIntervalSince1970) < 10
-    }
-
-    public func saveOverflowFold(_ folded: Bool, bootTime: Date) {
-        if folded { defaults.set(bootTime.timeIntervalSince1970, forKey: overflowFoldKey) }
-        else { defaults.removeObject(forKey: overflowFoldKey) }
     }
 }

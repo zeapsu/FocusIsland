@@ -92,22 +92,17 @@ final class IslandWindowController {
     private var pointerMonitors: [Any] = []
     private let pointerLocation: () -> NSPoint
     private let menuBarFrame: @MainActor (NSScreen) -> CGRect?
-    private let saveFold: (Bool) -> Void
     private let refreshMenuBar: () -> Void
     private let setMenuBarActive: (Bool) -> Void
     private var lastMenuBarFrames: (controls: [CGRect], items: [CGRect])?
     private var applyingMenuBarFrames = false
-    /// Set once Accessibility readings arrive; the fold then follows them instead of clicks.
-    private var menuBarReading: IslandGeometry.MenuBarReading?
 
     init(model: SessionController, openMenu: @escaping () -> Void,
          pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
          menuBarFrame: @escaping @MainActor (NSScreen) -> CGRect? = SystemMenuBar.frame,
-         restoredFold: Bool = false, saveFold: @escaping (Bool) -> Void = { _ in },
          menuBarFrames: AnyPublisher<(controls: [CGRect], items: [CGRect])?, Never>? = nil,
          refreshMenuBar: @escaping () -> Void = {}, setMenuBarActive: @escaping (Bool) -> Void = { _ in }) {
         self.model = model
-        self.saveFold = saveFold
         self.refreshMenuBar = refreshMenuBar
         self.setMenuBarActive = setMenuBarActive
         self.pointerLocation = pointerLocation
@@ -136,10 +131,6 @@ final class IslandWindowController {
         host.hoverChanged = { [weak self] _ in self?.updatePointer() }
         panel.contentView = host
         chooseScreen()
-        if yieldsToOverflow, presentation.attachedToNotch, restoredFold {
-            overflowFolded = true
-            presentation.wingFold = 1
-        }
         reposition()
         updateVisibility()
         // Tracking events can be missed by nonactivating panels, especially after a resize.
@@ -152,8 +143,6 @@ final class IslandWindowController {
         // Global mouse monitors need no Accessibility permission. They only see
         // clicks delivered to other apps, such as the system menu bar.
         if yieldsToOverflow, let monitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown, handler: { [weak self] _ in
-            guard let self else { return }
-            self.menuBandClicked(at: self.pointerLocation())
             // Re-read the menu bar soon after a click instead of waiting for the next
             // tick, and again once the icons have finished sliding.
             for delay in [0.15, 0.4] {
@@ -313,8 +302,8 @@ final class IslandWindowController {
         applyingMenuBarFrames = true
         defer { applyingMenuBarFrames = false }
         guard presentation.attachedToNotch, let screen = selectedScreen, let frames else {
-            menuBarReading = nil
             if presentation.trailingYields { presentation.trailingYields = false; reposition() }
+            setFold(false)
             return
         }
         // Accessibility frames use top-left coordinates from the primary display.
@@ -324,31 +313,20 @@ final class IslandWindowController {
         let notchMaxX = notchMinX + presentation.notchWidth
         let reading = IslandGeometry.menuBarReading(controls: frames.controls, items: frames.items, band: band,
                                                     notchMinX: notchMinX, notchMaxX: notchMaxX)
-        // Without a << control on this display the tree is not what was measured
-        // (no overflow, or a changed macOS layout), so keep the click guess.
+        // Without a << control on this display there is no overflow to follow,
+        // or the macOS layout changed from what was measured; stay unfolded.
         guard reading.control != nil else {
-            menuBarReading = nil
             if presentation.trailingYields { presentation.trailingYields = false; reposition() }
+            setFold(false)
             return
         }
-        menuBarReading = reading
         let yields = !IslandGeometry.trailingWingFits(control: reading.control, notchMaxX: notchMaxX, trailingWing: 28)
         if yields != presentation.trailingYields { presentation.trailingYields = yields; reposition() }
         setFold(reading.overflowOpen)
     }
-    func menuBandClicked(at point: NSPoint) {
-        // Accessibility readings, when granted, replace the click guess.
-        guard menuBarReading == nil, yieldsToOverflow, presentation.attachedToNotch, let screen = selectedScreen else { return }
-        let band = CGRect(x: screen.frame.minX, y: screen.frame.maxY - presentation.notchHeight,
-                          width: screen.frame.width, height: presentation.notchHeight)
-        let folded = IslandGeometry.overflowFolded(after: point, folded: overflowFolded, menuBand: band,
-            notchMaxX: notchMinX + presentation.notchWidth, trailingWing: presentation.baseTrailingWing)
-        setFold(folded)
-    }
     private func setFold(_ folded: Bool) {
         guard folded != overflowFolded else { return }
         overflowFolded = folded
-        saveFold(folded)
         foldTimer?.cancel()
         foldTimer = nil
         let target: CGFloat = folded ? 1 : 0

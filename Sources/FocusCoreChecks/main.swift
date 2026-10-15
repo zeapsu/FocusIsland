@@ -206,22 +206,6 @@ func testIslandGeometry() throws {
     try check(!IslandGeometry.yieldsToMenuBarOverflow(macOSMajor: 26) && IslandGeometry.yieldsToMenuBarOverflow(macOSMajor: 27), "only macOS 27 and later yield the notch band to menu-bar overflow")
     try check(IslandGeometry.startsHover(at: 700, notchMinX: 762.5, yielding: false), "leading wing starts hover before macOS 27")
     try check(!IslandGeometry.startsHover(at: 700, notchMinX: 762.5, yielding: true) && IslandGeometry.startsHover(at: 800, notchMinX: 762.5, yielding: true), "yielding island starts hover only from the camera housing or trailing wing")
-    let notchBand = CGRect(x: 0, y: 1073, width: 1710, height: 34)
-    func folded(_ x: CGFloat, _ y: CGFloat = 1090, from state: Bool) -> Bool {
-        IslandGeometry.overflowFolded(after: CGPoint(x: x, y: y), folded: state, menuBand: notchBand, notchMaxX: 947.5, trailingWing: 28)
-    }
-    try check(folded(992, from: false) && !folded(992, from: true), "clicks on the << position toggle the fold")
-    try check(!folded(960, from: false) && !folded(1030, from: false) && !folded(992, 500, from: false), "clicks off the << position do not fold")
-    try check(folded(700, from: true) && folded(1300, from: true) && folded(992, 500, from: true), "other clicks leave an open overflow folded")
-    let foldStore = LocalStore(defaults: temporaryDefaults())
-    let boot = Date(timeIntervalSince1970: 1_791_000_000)
-    try check(!foldStore.loadOverflowFold(bootTime: boot), "overflow fold starts unfolded")
-    foldStore.saveOverflowFold(true, bootTime: boot)
-    try check(foldStore.loadOverflowFold(bootTime: boot), "fold survives a relaunch within the same boot")
-    try check(!foldStore.loadOverflowFold(bootTime: boot.addingTimeInterval(3_600)), "fold resets after a restart")
-    try check(foldStore.loadOverflowFold(bootTime: boot.addingTimeInterval(3)), "a small boot-time correction keeps the fold")
-    foldStore.saveOverflowFold(false, bootTime: boot)
-    try check(!foldStore.loadOverflowFold(bootTime: boot), "unfolding clears the stored fold")
     // Frames read through Accessibility on macOS 27.0.1 (MacBook Air, notch 762.5–947.5).
     let axBand = CGRect(x: 0, y: 0, width: 1710, height: 34)
     let chevron = CGRect(x: 969, y: 1, width: 17, height: 31)
