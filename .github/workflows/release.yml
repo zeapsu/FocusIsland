@@ -54,6 +54,9 @@ jobs:
           printf '%s' "$CODE_SIGNING_P12" | base64 --decode > "$RUNNER_TEMP/signing.p12"
           security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$CODE_SIGNING_P12_PASSWORD" -T /usr/bin/codesign >/dev/null
           security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" >/dev/null
+          # codesign on macOS 15 finds the identity only in a keychain on the search list,
+          # even with --keychain. The runner is discarded after the job.
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
           CODE_SIGN_KEYCHAIN="$keychain" ./scripts/sign-app.sh "dist/Focus Island.app" "$(tr -d '[:space:]' < config/code-signing-certificate.txt)"
           # Replacing the certificate makes every user re-grant Accessibility; warn well ahead.
           codesign -d --extract-certificates="$RUNNER_TEMP/signing-cert" "dist/Focus Island.app"
